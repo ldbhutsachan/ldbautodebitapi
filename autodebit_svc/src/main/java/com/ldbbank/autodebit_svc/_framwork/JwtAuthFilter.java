@@ -25,7 +25,8 @@ public class JwtAuthFilter implements jakarta.servlet.Filter {
             "/auth/verify",
             "/swagger",
             "/swagger-ui",
-            "/v3/api-docs"
+            "/v3/api-docs",
+            "/batch/run"
     };
 
     private boolean isWhitelisted(String path) {

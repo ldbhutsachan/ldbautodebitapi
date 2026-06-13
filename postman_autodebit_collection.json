@@ -1,0 +1,164 @@
+{
+  "info": {
+    "name": "Autodebit API - Postman Collection",
+    "_postman_id": "autodebit-collection-001",
+    "description": "Collection of endpoints for autodebit_svc. Set variable base_url (default http://localhost:4289) and optional X-BATCH-KEY.\nAuth endpoints return JWT access token to use as Authorization: Bearer {{access_token}}.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:4289", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "batch_key", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth - Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"userName\": \"admin\",\n  \"password\": \"123456\"\n}" },
+        "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth","login"] }
+      }
+    },
+    {
+      "name": "Auth - Refresh",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"<refresh-token>\"\n}" },
+        "url": { "raw": "{{base_url}}/auth/refresh", "host": ["{{base_url}}"], "path": ["auth","refresh"] }
+      }
+    },
+    {
+      "name": "Auth - Hash (generate bcrypt)",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"password\": \"123456\"\n}" },
+        "url": { "raw": "{{base_url}}/auth/hash", "host": ["{{base_url}}"], "path": ["auth","hash"] }
+      }
+    },
+    {
+      "name": "Company - Create",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{access_token}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"My Company\",\n  \"percent\": 1.5\n}" },
+        "url": { "raw": "{{base_url}}/company", "host": ["{{base_url}}"], "path": ["company"] }
+      }
+    },
+    {
+      "name": "Company - Create (multipart + file)",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{access_token}}" } ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "company", "value": "{\"name\":\"MyCo\",\"percent\":2}", "type": "text" },
+            { "key": "file", "type": "file", "src": "" }
+          ]
+        },
+        "url": { "raw": "{{base_url}}/company/multipart", "host": ["{{base_url}}"], "path": ["company","multipart"] }
+      }
+    },
+    {
+      "name": "Company - Upload Image",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{access_token}}" } ],
+        "body": { "mode": "formdata", "formdata": [ { "key": "file", "type": "file", "src": "" } ] },
+        "url": { "raw": "{{base_url}}/company/:id/upload", "host": ["{{base_url}}"], "path": ["company",":id","upload"] }
+      }
+    },
+    {
+      "name": "Company - Update",
+      "request": {
+        "method": "PUT",
+        "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{access_token}}" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Updated Co\",\n  \"percent\": 2.0\n}" },
+        "url": { "raw": "{{base_url}}/company/:id", "host": ["{{base_url}}"], "path": ["company",":id"] }
+      }
+    },
+    {
+      "name": "Company - Disable",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{access_token}}" }, { "key": "X-BATCH-KEY", "value": "{{batch_key}}" } ],
+        "url": { "raw": "{{base_url}}/company/:id/disable", "host": ["{{base_url}}"], "path": ["company",":id","disable"] }
+      }
+    },
+    {
+      "name": "Company - List (paged)",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "Authorization", "value": "Bearer {{access_token}}" } ],
+        "url": { "raw": "{{base_url}}/company?page=0&size=20", "host": ["{{base_url}}"], "path": ["company"], "query": [ { "key": "page", "value": "0" }, { "key": "size", "value": "20" } ] }
+      }
+    },
+    {
+      "name": "Account - Create",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{access_token}}" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"companyId\": 1,\n  \"accountNo\": \"1234567890\"\n}" },
+        "url": { "raw": "{{base_url}}/account", "host": ["{{base_url}}"], "path": ["account"] }
+      }
+    },
+    {
+      "name": "Account - List",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "Authorization", "value": "Bearer {{access_token}}" } ],
+        "url": { "raw": "{{base_url}}/account", "host": ["{{base_url}}"], "path": ["account"] }
+      }
+    },
+    {
+      "name": "AccountMapper - Create",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{access_token}}" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"companyId\": 1,\n  \"accountNo\": \"1234567890\",\n  \"status\": \"OPEN\"\n}" },
+        "url": { "raw": "{{base_url}}/account-mapper", "host": ["{{base_url}}"], "path": ["account-mapper"] }
+      }
+    },
+    {
+      "name": "Debit - VV Register",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{access_token}}" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"someField\": \"value\"\n}" },
+        "url": { "raw": "{{base_url}}/debit/vv-register", "host": ["{{base_url}}"], "path": ["debit","vv-register"] }
+      }
+    },
+    {
+      "name": "Batch - Run (by date)",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{access_token}}" }, { "key": "X-BATCH-KEY", "value": "{{batch_key}}" } ],
+        "url": { "raw": "{{base_url}}/batch/run?date=2026-06-13", "host": ["{{base_url}}"], "path": ["batch","run"], "query": [ { "key": "date", "value": "2026-06-13" } ] }
+      }
+    },
+    {
+      "name": "Batch - Start Now",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{access_token}}" }, { "key": "X-BATCH-KEY", "value": "{{batch_key}}" } ],
+        "url": { "raw": "{{base_url}}/batch/start-now", "host": ["{{base_url}}"], "path": ["batch","start-now"] }
+      }
+    },
+    {
+      "name": "Batch - Schedule (one-shot)",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{access_token}}" }, { "key": "X-BATCH-KEY", "value": "{{batch_key}}" } ],
+        "url": { "raw": "{{base_url}}/batch/schedule?time=15:20", "host": ["{{base_url}}"], "path": ["batch","schedule"], "query": [ { "key": "time", "value": "15:20" } ] }
+      }
+    }
+  ]
+}
