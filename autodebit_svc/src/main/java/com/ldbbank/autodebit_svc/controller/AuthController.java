@@ -4,7 +4,6 @@ import com.ldbbank.autodebit_svc.model.LoginRequest;
 import com.ldbbank.autodebit_svc.model.LoginResponse;
 import com.ldbbank.autodebit_svc.service.AuthService;
 import com.ldbbank.autodebit_svc.db.autodebit.entity.UserDbEntity;
-import com.ldbbank.autodebit_svc.db.autodebit.entity.MapUserMenuEntity;
 import com.ldbbank.autodebit_svc.db.autodebit.entity.VvUserEntity;
 import com.ldbbank.autodebit_svc.db.autodebit.repository.MapUserMenuRepository;
 import com.ldbbank.autodebit_svc.db.autodebit.repository.VvUserRepository;

@@ -25,6 +25,12 @@ public class AutoDebitCompanyEntity {
     @Column(name = "STATUS", length = 32)
     private String status; // e.g. open, disabled
 
+    @Column(name = "PERCENT")
+    private java.math.BigDecimal percent;
+
+    @Column(name = "BAT_RUNNING_DATE")
+    private java.time.LocalDate batRunningDate;
+
     @Column(name = "CREATED_AT")
     private LocalDateTime createdAt;
 
@@ -36,5 +42,8 @@ public class AutoDebitCompanyEntity {
 
     @Column(name = "IMAGE_NAME", length = 512)
     private String imageName;
+
+    @Column(name = "bat_running_date")
+    private String batRunning;
 }
 

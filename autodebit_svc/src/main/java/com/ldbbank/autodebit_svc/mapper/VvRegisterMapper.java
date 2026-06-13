@@ -1,4 +1,4 @@
-package com.ldbbank.autodebit_svc.mapper.ReportAutodebit;
+package com.ldbbank.autodebit_svc.mapper;
 
 import com.ldbbank.autodebit_svc.db.autodebit.entity.VvRegisterEntity;
 import com.ldbbank.autodebit_svc.dto.VvRegisterDto;

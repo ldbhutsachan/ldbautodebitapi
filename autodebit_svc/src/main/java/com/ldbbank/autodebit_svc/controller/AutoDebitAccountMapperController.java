@@ -2,13 +2,11 @@ package com.ldbbank.autodebit_svc.controller;
 
 import com.ldbbank.autodebit_svc.db.autodebit.entity.AutoDebitAccountMapperEntity;
 import com.ldbbank.autodebit_svc.excaption.ApiResponse;
-import com.ldbbank.autodebit_svc.model.AutoDebitAccountMapperDto;
 import com.ldbbank.autodebit_svc.service.AutoDebitAccountMapperService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 
 @RequiredArgsConstructor
