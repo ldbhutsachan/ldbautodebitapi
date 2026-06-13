@@ -91,7 +91,7 @@ public class BatchController {
     }
 
     // Runs daily at 15:13 server time
-    @Scheduled(cron = "0 13 15 * * *")
+    @Scheduled(cron = "0 29 15 * * *")
     public void dailyRun() {
         try {
             batchService.runForDate(LocalDate.now());

@@ -10,7 +10,7 @@ public class AutoDebitAccountDto {
     private String accountNo;
     private String accountName;
     private Long companyId;
-    private String companyCode;
+    private Long companyCode;
     private String companyName;
     private String status;
     private LocalDateTime createdAt;

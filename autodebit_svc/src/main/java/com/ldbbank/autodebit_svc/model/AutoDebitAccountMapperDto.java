@@ -12,7 +12,7 @@ public class AutoDebitAccountMapperDto {
     private String accountName;
 
     private Long companyId;
-    private String companyCode;
+    private Long companyCode;
     private String companyName;
 
     private String sectionNo;

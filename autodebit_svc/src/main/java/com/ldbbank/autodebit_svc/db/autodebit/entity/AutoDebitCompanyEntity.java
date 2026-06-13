@@ -1,5 +1,6 @@
 package com.ldbbank.autodebit_svc.db.autodebit.entity;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -11,13 +12,11 @@ import java.time.LocalDateTime;
 public class AutoDebitCompanyEntity {
 
     @Id
-    @SequenceGenerator(name = "auto_debit_company_seq", sequenceName = "AUTO_DEBIT_COMPANY_SEQ", allocationSize = 1)
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "auto_debit_company_seq")
-    @Column(name = "ID")
-    private Long id;
+    @SequenceGenerator(name = "COMPANY_SEQUENCE", sequenceName = "COMPANY_SEQUENCE", allocationSize = 1)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "COMPANY_SEQUENCE")
+    @Column(name = "COMPANYNO", length = 64)
 
-    @Column(name = "COMPANY_CODE", length = 64)
-    private String companyCode;
+    private Long companyCode;
 
     @Column(name = "COMPANY_NAME", length = 256)
     private String companyName;
@@ -29,13 +28,16 @@ public class AutoDebitCompanyEntity {
     private java.math.BigDecimal percent;
 
     @Column(name = "BAT_RUNNING_DATE")
-    private java.time.LocalDate batRunningDate;
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
+    private LocalDateTime batRunningDate;
 
-    @Column(name = "CREATED_AT")
-    private LocalDateTime createdAt;
+
+
+    @Column(name = "MAKE_BY_AT")
+    private LocalDateTime  createdAt;
 
     @Column(name = "UPDATED_AT")
-    private LocalDateTime updatedAt;
+    private LocalDateTime  updatedAt;
 
     @Column(name = "IMAGE_PATH", length = 1024)
     private String imagePath;
@@ -43,7 +45,5 @@ public class AutoDebitCompanyEntity {
     @Column(name = "IMAGE_NAME", length = 512)
     private String imageName;
 
-    @Column(name = "bat_running_date")
-    private String batRunning;
 }
 

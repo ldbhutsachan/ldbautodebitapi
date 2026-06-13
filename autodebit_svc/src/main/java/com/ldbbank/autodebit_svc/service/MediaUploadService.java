@@ -1,5 +1,6 @@
 package com.ldbbank.autodebit_svc.service;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -11,21 +12,24 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-
 @Service
 public class MediaUploadService {
-    private final Path baseDir;
 
-    public MediaUploadService() {
-        this.baseDir = Path.of(System.getProperty("user.dir"), "uploads");
-    }
+    @Value("${media.upload.path}")
+    private String uploadPath;   // filesystem path
+
+    @Value("${media.upload.url}")
+    private String uploadUrl;    // public URL prefix
 
     public Map<String, String> store(MultipartFile file, String subDir) throws IOException {
         if (file == null || file.isEmpty()) throw new IOException("Empty file");
+
         String date = LocalDate.now().toString().replace("-", "");
-        Path dir = baseDir.resolve(subDir).resolve(date);
+        Path dir = Path.of(uploadPath).resolve(subDir).resolve(date);
         Files.createDirectories(dir);
-        String orig = Path.of(file.getOriginalFilename() == null ? "file" : file.getOriginalFilename()).getFileName().toString();
+
+        String orig = Path.of(file.getOriginalFilename() == null ? "file" : file.getOriginalFilename())
+                .getFileName().toString();
         String ext = "";
         int idx = orig.lastIndexOf('.');
         if (idx > 0) {
@@ -33,12 +37,15 @@ public class MediaUploadService {
         }
         String name = UUID.randomUUID().toString() + ext;
         Path dest = dir.resolve(name);
+
         try (var in = file.getInputStream()) {
             Files.copy(in, dest, StandardCopyOption.REPLACE_EXISTING);
         }
+
         Map<String, String> res = new HashMap<>();
-        res.put("path", dest.toAbsolutePath().toString());
-        res.put("name", orig);
+        res.put("path", dest.toAbsolutePath().toString()); // local path
+        res.put("name", orig);                             // original filename
+        res.put("url", uploadUrl + subDir + "/" + date + "/" + name); // public URL
         return res;
     }
 }

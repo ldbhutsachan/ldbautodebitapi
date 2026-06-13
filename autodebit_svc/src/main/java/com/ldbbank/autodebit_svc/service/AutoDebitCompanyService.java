@@ -25,17 +25,34 @@ public class AutoDebitCompanyService {
 
     public Optional<AutoDebitCompanyEntity> update(Long id, AutoDebitCompanyEntity change) {
         return repo.findById(id).map(existing -> {
-            if (change.getCompanyCode() != null) existing.setCompanyCode(change.getCompanyCode());
-            if (change.getCompanyName() != null) existing.setCompanyName(change.getCompanyName());
-            if (change.getStatus() != null) existing.setStatus(change.getStatus());
+            if (change.getCompanyCode() != null) {
+                existing.setCompanyCode(change.getCompanyCode());
+            }
+            if (change.getCompanyName() != null) {
+                existing.setCompanyName(change.getCompanyName());
+            }
+            if (change.getStatus() != null) {
+                existing.setStatus(change.getStatus());
+            }
+            if (change.getImagePath() != null) {
+                existing.setImagePath(change.getImagePath());
+            }
+            if (change.getImageName() != null) {
+                existing.setImageName(change.getImageName());
+            }
+            if (change.getBatRunningDate() != null) {
+                existing.setBatRunningDate(change.getBatRunningDate());
+            }
+
             existing.setUpdatedAt(LocalDateTime.now());
+
             return repo.save(existing);
         });
     }
 
     public boolean disable(Long id) {
         return repo.findById(id).map(existing -> {
-            existing.setStatus("disabled");
+            existing.setStatus("close");
             existing.setUpdatedAt(LocalDateTime.now());
             repo.save(existing);
             return true;

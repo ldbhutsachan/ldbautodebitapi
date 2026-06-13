@@ -49,7 +49,7 @@ public class BatchService {
             if (!comp.getBatRunningDate().equals(date)) continue;
             BigDecimal percent = comp.getPercent() == null ? BigDecimal.ZERO : comp.getPercent();
             // get mappers for company
-            List<AutoDebitAccountMapperEntity> maps = mapperRepo.findByCompanyId(comp.getId());
+            List<AutoDebitAccountMapperEntity> maps = mapperRepo.findByCompanyId(comp.getCompanyCode());
             for (AutoDebitAccountMapperEntity m : maps) {
                 if (m.getStatus() == null || m.getStatus() != 1) continue; // only open
                 var accOpt = accountRepo.findById(m.getAccountId());
@@ -60,7 +60,7 @@ public class BatchService {
 
                 AutoDebitAccountTxnEntity txn = new AutoDebitAccountTxnEntity();
                 txn.setAccountId(acc.getId());
-                txn.setCompanyId(comp.getId());
+                txn.setCompanyId(comp.getCompanyCode());
                 txn.setClosingBalance(closing);
                 txn.setAmount(amount);
                 txn.setTxnDate(LocalDateTime.now());
