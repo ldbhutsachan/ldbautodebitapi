@@ -13,10 +13,9 @@ public class VvRegisterService {
 
     private final VvRegisterRepository repository;
     public List<VvRegisterEntity> getRegisterData(ReportReq request) {
-        return repository.findByBranchCodeAndUserDateBetween(
-                request.getBranchCode(),
-                request.getStartDate(),
-                request.getEndDate()
-        );
+//        repository.findByBranchCode(
+//                request.getBranchCode()
+//        );
+        return repository.findAll();
     }
 }

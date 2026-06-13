@@ -10,6 +10,7 @@ import java.util.List;
 @Repository
 public interface VvRegisterRepository extends JpaRepository<VvRegisterEntity, Long> {
     // You can add custom query methods here if needed
-    List<VvRegisterEntity> findByBranchCodeAndUserDateBetween(String branchCode, LocalDate startDate, LocalDate endDate);
+    List<VvRegisterEntity> findByBranchCode(String branchCode
+            );
 }
 
