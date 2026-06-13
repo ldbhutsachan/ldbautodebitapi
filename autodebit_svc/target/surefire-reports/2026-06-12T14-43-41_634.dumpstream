@@ -1,0 +1,5 @@
+# Created at 2026-06-12T14:43:41.788
+Boot Manifest-JAR contains absolute paths in classpath 'D:\project-ldb-auto-debit-2026\auto-debit-api\autodebit_svc\target\test-classes'
+Hint: <argLine>-Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
+'other' has different root
+
