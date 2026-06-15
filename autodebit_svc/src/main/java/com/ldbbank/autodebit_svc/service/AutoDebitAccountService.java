@@ -25,7 +25,6 @@ public class AutoDebitAccountService {
     public AutoDebitAccountEntity save(AutoDebitAccountEntity e) {
         LocalDateTime now = LocalDateTime.now();
         e.setCreatedAt(now);
-        e.setUpdatedAt(now);
         if (e.getStatus() == null) e.setStatus("open");
         return accountRepo.save(e);
     }
@@ -34,9 +33,8 @@ public class AutoDebitAccountService {
         return accountRepo.findById(id).map(existing -> {
             if (change.getAccountNo() != null) existing.setAccountNo(change.getAccountNo());
             if (change.getAccountName() != null) existing.setAccountName(change.getAccountName());
-            if (change.getCompanyId() != null) existing.setCompanyId(change.getCompanyId());
+            if (change.getPartNerName() != null) existing.setPartNerName(change.getPartNerName());
             if (change.getStatus() != null) existing.setStatus(change.getStatus());
-            existing.setUpdatedAt(LocalDateTime.now());
             return accountRepo.save(existing);
         });
     }
@@ -52,8 +50,8 @@ public class AutoDebitAccountService {
         List<AutoDebitAccountDto> result = new ArrayList<>();
         for (AutoDebitAccountEntity a : accounts) {
             AutoDebitAccountDto d = mapToDto(a);
-            if (a.getCompanyId() != null) {
-                Optional<AutoDebitCompanyEntity> c = companyRepo.findById(a.getCompanyId());
+            if (a.getPartNerName() != null) {
+                Optional<AutoDebitCompanyEntity> c = companyRepo.findById(Long.valueOf(a.getPartNerName()));
                 c.ifPresent(company -> {
                     d.setCompanyCode(company.getCompanyCode());
                     d.setCompanyName(company.getCompanyName());
@@ -76,10 +74,9 @@ public class AutoDebitAccountService {
         d.setId(a.getId());
         d.setAccountNo(a.getAccountNo());
         d.setAccountName(a.getAccountName());
-        d.setCompanyId(a.getCompanyId());
+        d.setCompanyId(a.getPartNerName());
         d.setStatus(a.getStatus());
         d.setCreatedAt(a.getCreatedAt());
-        d.setUpdatedAt(a.getUpdatedAt());
         return d;
     }
 }

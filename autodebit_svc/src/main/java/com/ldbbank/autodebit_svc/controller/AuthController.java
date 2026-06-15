@@ -12,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 @RequiredArgsConstructor
 @RestController
@@ -70,23 +69,6 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("code", "00", "message", "Success", "accessToken", "Bearer " + newAccess.get()));
     }
 
-    @PostMapping("/hash")
-    public ResponseEntity<?> hashPassword(@RequestBody Map<String, String> body) {
-        String password = body.get("password");
-        if (password == null) return ResponseEntity.badRequest().body(Map.of("code", "04", "message", "password missing"));
-        String hashed = new BCryptPasswordEncoder().encode(password);
-        return ResponseEntity.ok(Map.of("code", "00", "message", "Success", "hash", hashed));
-    }
-
-    @PostMapping("/verify")
-    public ResponseEntity<?> verifyPassword(@RequestBody Map<String, String> body) {
-        String password = body.get("password");
-        String hash = body.get("hash");
-        if (password == null || hash == null) return ResponseEntity.badRequest().body(Map.of("code", "05", "message", "password or hash missing"));
-        boolean matches = new BCryptPasswordEncoder().matches(password, hash);
-        if (matches) return ResponseEntity.ok(Map.of("code", "00", "message", "Match"));
-        return ResponseEntity.status(401).body(Map.of("code", "01", "message", "Not match"));
-    }
 
     @PostMapping("/change-password")
     public ResponseEntity<?> changePassword(@RequestBody Map<String, String> body) {

@@ -2,21 +2,18 @@ package com.ldbbank.autodebit_svc._framwork;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ldbbank.autodebit_svc.util.JwtTokenUtil;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import javax.servlet.*;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Map;
 
 @Component
 @Order(1)
-public class JwtAuthFilter implements jakarta.servlet.Filter {
+public class JwtAuthFilter implements Filter {
 
     private static final String[] WHITELIST = new String[] {
             "/auth/login",

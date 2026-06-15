@@ -3,7 +3,6 @@ package com.ldbbank.autodebit_svc.service;
 import com.ldbbank.autodebit_svc.db.autodebit.entity.UserDbEntity;
 import com.ldbbank.autodebit_svc.db.autodebit.repository.UserDbRepository;
 import org.springframework.stereotype.Service;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -16,7 +15,6 @@ public class AuthService {
     private final UserDbRepository userRepo;
     // simple in-memory refresh token store: refreshToken -> (username, expiryEpoch)
     private final Map<String, RefreshInfo> refreshStore = new ConcurrentHashMap<>();
-    private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     public AuthService(UserDbRepository userRepo) {
         this.userRepo = userRepo;
@@ -29,10 +27,7 @@ public class AuthService {
                     String stored = u.getPassword();
                     if (stored == null) return false;
                     // if stored looks like a bcrypt hash, use encoder; otherwise compare plaintext
-                    String lower = stored.toLowerCase();
-                    if (lower.startsWith("$2a$") || lower.startsWith("$2b$") || lower.startsWith("$2y$")) {
-                        return encoder.matches(password, stored);
-                    }
+                   //to do
                     return stored.equals(password);
                 });
     }

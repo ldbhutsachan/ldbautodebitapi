@@ -3,8 +3,11 @@ package com.ldbbank.autodebit_svc.db.autodebit.entity;
 import lombok.Data;
 
 
-import jakarta.persistence.*;
-        import java.time.LocalDateTime;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.Table;
+import java.time.LocalDateTime;
 @Data
 @Entity
 @Table(name = "USER_LOGIN")

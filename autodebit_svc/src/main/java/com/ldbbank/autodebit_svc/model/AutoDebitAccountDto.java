@@ -9,10 +9,10 @@ public class AutoDebitAccountDto {
     private Long id;
     private String accountNo;
     private String accountName;
-    private Long companyId;
+    private String companyId;
     private Long companyCode;
     private String companyName;
     private String status;
     private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+
 }

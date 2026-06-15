@@ -13,6 +13,7 @@ import com.ldbbank.autodebit_svc.db.autodebit.repository.UserDbRepository;
 import com.ldbbank.autodebit_svc.model.AutoDebitAccountMapperDto;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,20 +42,20 @@ public class AutoDebitAccountMapperService {
 
     public AutoDebitAccountMapperEntity save(AutoDebitAccountMapperEntity e) {
         LocalDateTime now = LocalDateTime.now();
-        e.setCreatedAt(now);
-        e.setUpdatedAt(now);
+        e.setUserDate(LocalDate.from(now));
+        e.setEditingDate(LocalDate.from(now));
         if (e.getStatus() == null) e.setStatus(1);
         return mapperRepo.save(e);
     }
 
     public Optional<AutoDebitAccountMapperEntity> update(Long id, AutoDebitAccountMapperEntity change) {
         return mapperRepo.findById(id).map(existing -> {
-            if (change.getAccountId() != null) existing.setAccountId(change.getAccountId());
-            if (change.getCompanyId() != null) existing.setCompanyId(change.getCompanyId());
-            if (change.getSectionNo() != null) existing.setSectionNo(change.getSectionNo());
-            if (change.getUserId() != null) existing.setUserId(change.getUserId());
+            if (change.getFromAcctNo() != null) existing.setFromAcctNo(change.getFromAcctNo());
+            if (change.getPartnerName() != null) existing.setPartnerName(change.getPartnerName());
+            if (change.getBranchCode() != null) existing.setBranchCode(change.getBranchCode());
+            if (change.getUserBy() != null) existing.setUserBy(change.getUserBy());
             if (change.getStatus() != null) existing.setStatus(change.getStatus());
-            existing.setUpdatedAt(LocalDateTime.now());
+            existing.setEditingDate(LocalDate.from(LocalDateTime.now()));
             return mapperRepo.save(existing);
         });
     }
@@ -62,7 +63,7 @@ public class AutoDebitAccountMapperService {
     public boolean updateStatus(Long id, Integer status) {
         return mapperRepo.findById(id).map(existing -> {
             existing.setStatus(status);
-            existing.setUpdatedAt(LocalDateTime.now());
+            existing.setEditingDate(LocalDate.from(LocalDateTime.now()));
             mapperRepo.save(existing);
             return true;
         }).orElse(false);
@@ -74,29 +75,29 @@ public class AutoDebitAccountMapperService {
         for (AutoDebitAccountMapperEntity m : maps) {
             AutoDebitAccountMapperDto d = mapToDto(m);
             // account
-            if (m.getAccountId() != null) {
-                Optional<AutoDebitAccountEntity> a = accountRepo.findById(m.getAccountId());
+            if (m.getFromAcctNo() != null) {
+                Optional<AutoDebitAccountEntity> a = accountRepo.findByPartNerName(m.getPartnerName());
                 a.ifPresent(account -> {
                     d.setAccountNo(account.getAccountNo());
                     d.setAccountName(account.getAccountName());
                 });
             }
             // company
-            if (m.getCompanyId() != null) {
-                Optional<AutoDebitCompanyEntity> c = companyRepo.findById(m.getCompanyId());
+            if (m.getPartnerName() != null) {
+                Optional<AutoDebitCompanyEntity> c = companyRepo.findById(Long.valueOf(m.getPartnerName()));
                 c.ifPresent(company -> {
                     d.setCompanyCode(company.getCompanyCode());
                     d.setCompanyName(company.getCompanyName());
                 });
             }
             // section
-            if (m.getSectionNo() != null) {
-                Optional<SectionEntity> s = sectionRepo.findBySectionNo(m.getSectionNo());
+            if (m.getBranchCode() != null) {
+                Optional<SectionEntity> s = sectionRepo.findBySectionNo(m.getBranchCode());
                 s.ifPresent(section -> d.setSectionName(section.getSectionName()));
             }
             // user
-            if (m.getUserId() != null) {
-                Optional<UserDbEntity> u = userRepo.findById(m.getUserId());
+            if (m.getUserBy() != null) {
+                Optional<UserDbEntity> u = userRepo.findByUserName(m.getUserBy());
                 u.ifPresent(user -> d.setUserName(user.getUserName()));
             }
             result.add(d);
@@ -106,14 +107,14 @@ public class AutoDebitAccountMapperService {
 
     private AutoDebitAccountMapperDto mapToDto(AutoDebitAccountMapperEntity m) {
         AutoDebitAccountMapperDto d = new AutoDebitAccountMapperDto();
-        d.setId(m.getId());
-        d.setAccountId(m.getAccountId());
-        d.setCompanyId(m.getCompanyId());
-        d.setSectionNo(m.getSectionNo());
-        d.setUserId(m.getUserId());
+        d.setId(m.getKeyId());
+        d.setAccountNo(m.getFromAcctNo());
+        d.setAccountName(m.getFromAcctName());
+        d.setSectionNo(m.getBranchCode());
+        d.setUserId(m.getUserBy());
         d.setStatus(m.getStatus());
-        d.setCreatedAt(m.getCreatedAt());
-        d.setUpdatedAt(m.getUpdatedAt());
+        d.setCreatedAt(m.getUserDate());
+        d.setUpdatedAt(m.getEditingDate());
         return d;
     }
 }

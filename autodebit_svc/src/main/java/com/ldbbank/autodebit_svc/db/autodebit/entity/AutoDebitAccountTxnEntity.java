@@ -1,41 +1,88 @@
 package com.ldbbank.autodebit_svc.db.autodebit.entity;
 
-import jakarta.persistence.*;
 import lombok.Data;
 
+import javax.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+    @Data
+    @Entity
+    @Table(name = "AUTO_DEBIT_ACCOUNT_TXN", schema = "AUTO_DEBIT_USER")
+    public class AutoDebitAccountTxnEntity {
 
-@Data
-@Entity
-@Table(name = "AUTO_DEBIT_ACCOUNT_TXN")
-public class AutoDebitAccountTxnEntity {
+        @Id
+        @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "AUTO_DEBIT_TXN_SEQUENCE")
+        @SequenceGenerator(name = "AUTO_DEBIT_TXN_SEQUENCE", sequenceName = "AUTO_DEBIT_TXN_SEQUENCE", allocationSize = 1)
+        @Column(name = "KEY_ID")
+        private Long keyId;
 
-    @Id
-    @SequenceGenerator(name = "auto_debit_account_txn_seq", sequenceName = "AUTO_DEBIT_ACCOUNT_TXN_SEQ", allocationSize = 1)
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "auto_debit_account_txn_seq")
-    @Column(name = "ID")
-    private Long id;
 
-    @Column(name = "ACCOUNT_ID")
-    private Long accountId;
+        @Column(name = "FROM_ACCT_NO", length = 30)
+        private String fromAcctNo;
 
-    @Column(name = "COMPANY_ID")
-    private Long companyId;
+        @Column(name = "FROM_ACCT_NAME", length = 100)
+        private String fromAcctName;
 
-    @Column(name = "AMOUNT")
-    private BigDecimal amount;
+        @Column(name = "FROM_ACCT_CCY", length = 3)
+        private String fromAcctCcy;
 
-    @Column(name = "CLOSING_BALANCE")
-    private BigDecimal closingBalance;
+        @Column(name = "FROM_ACCT_AMOUNT")
+        private BigDecimal fromAcctAmount;
 
-    @Column(name = "TXN_DATE")
-    private LocalDateTime txnDate;
+        @Column(name = "TO_ACCT_NO", length = 30)
+        private String toAcctNo;
 
-    @Column(name = "DESCRIPTION", length = 512)
-    private String description;
+        @Column(name = "TO_ACCT_NAME", length = 100)
+        private String toAcctName;
 
-    @Column(name = "CREATED_AT")
-    private LocalDateTime createdAt;
+        @Column(name = "TO_ACCT_CCY", length = 3)
+        private String toAcctCcy;
 
-}
+        @Column(name = "TO_ACCT_AMOUNT")
+        private BigDecimal toAcctAmount;
+
+        @Column(name = "TXN_DATE")
+        private LocalDate txnDate;
+
+        @Column(name = "PERCENT")
+        private BigDecimal percent;
+
+        @Column(name = "BALANE_AMOUNT")
+        private BigDecimal balanceAmount;
+
+        @Column(name = "TOTAL_AMOUNT")
+        private BigDecimal totalAmount;
+
+        @Column(name = "TXN_TYPE", length = 20)
+        private String txnType;
+
+        @Column(name = "REMARK", length = 255)
+        private String remark;
+
+        @Column(name = "REF", length = 100)
+        private String ref;
+
+        @Column(name = "reference", length = 100)
+        private String reference;
+
+        @Column(name = "CORE_TXN_DATE")
+        private LocalDateTime coreTxnDate;
+
+        @Column(name = "CORE_REQ", length = 1500)
+        private String coreReq;
+
+        @Column(name = "CORE_RES", length = 1500)
+        private String coreRes;
+
+        @Column(name = "STATUS", length = 200)
+        private String status;
+
+        @Column(name = "USER_REP", length = 200)
+        private String userRep;
+
+        @Column(name = "REP_DATE")
+        private LocalDate repDate;
+
+
+    }

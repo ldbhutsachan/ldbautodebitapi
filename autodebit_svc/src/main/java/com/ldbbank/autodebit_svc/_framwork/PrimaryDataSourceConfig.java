@@ -13,13 +13,15 @@ import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
-import jakarta.persistence.EntityManagerFactory;
+
+import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
+import java.util.Map;
 
 @Configuration
 @EnableTransactionManagement
 @EnableJpaRepositories(
-        basePackages = "com.ldbbank.autodebit_svc.db.autodebit.repository", // Adjust to your primary repository package
+        basePackages = "com.ldbbank.autodebit_svc.db.autodebit.repository",
         entityManagerFactoryRef = "primaryEntityManagerFactory",
         transactionManagerRef = "primaryTransactionManager"
 )
@@ -33,20 +35,23 @@ public class PrimaryDataSourceConfig {
     }
 
     @Primary
-    @Bean(name = "primaryEntityManagerFactory")
+    @Bean(name = {"primaryEntityManagerFactory", "entityManagerFactory"})
     public LocalContainerEntityManagerFactoryBean primaryEntityManagerFactory(
-            EntityManagerFactoryBuilder builder, @Qualifier("primaryDataSource") DataSource dataSource) {
+            EntityManagerFactoryBuilder builder,
+            @Qualifier("primaryDataSource") DataSource dataSource) {
         return builder
                 .dataSource(dataSource)
-                .packages("com.ldbbank.autodebit_svc.db.autodebit.entity") // Adjust to your primary entity package
-                .persistenceUnit("primary")
+                .packages("com.ldbbank.autodebit_svc.db.autodebit.entity")
+                .persistenceUnit("primaryPU")
+                .properties(Map.of("hibernate.dialect", "org.hibernate.dialect.OracleDialect"))
                 .build();
     }
 
     @Primary
     @Bean(name = "primaryTransactionManager")
     public PlatformTransactionManager primaryTransactionManager(
-            @Qualifier("primaryEntityManagerFactory") EntityManagerFactory primaryEntityManagerFactory) {
-        return new JpaTransactionManager(primaryEntityManagerFactory);
+            @Qualifier("primaryEntityManagerFactory") EntityManagerFactory emf) {
+        return new JpaTransactionManager(emf);
     }
 }
+

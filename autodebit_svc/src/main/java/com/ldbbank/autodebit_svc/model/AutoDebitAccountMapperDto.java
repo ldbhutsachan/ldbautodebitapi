@@ -2,12 +2,12 @@ package com.ldbbank.autodebit_svc.model;
 
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
 public class AutoDebitAccountMapperDto {
     private Long id;
-    private Long accountId;
     private String accountNo;
     private String accountName;
 
@@ -18,10 +18,10 @@ public class AutoDebitAccountMapperDto {
     private String sectionNo;
     private String sectionName;
 
-    private Long userId;
+    private String userId;
     private String userName;
 
     private Integer status;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private LocalDate createdAt;
+    private LocalDate updatedAt;
 }

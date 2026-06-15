@@ -1,6 +1,12 @@
 package com.ldbbank.autodebit_svc.db.autodebit.entity;
 
-import jakarta.persistence.*;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.Table;
+
+import java.time.LocalDate;
 import lombok.Data;
 
 import java.time.LocalDate;
