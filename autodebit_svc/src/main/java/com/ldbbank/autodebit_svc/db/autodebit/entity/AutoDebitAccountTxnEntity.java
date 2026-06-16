@@ -18,25 +18,25 @@ import java.time.LocalDate;
         private Long keyId;
 
 
-        @Column(name = "FROM_ACCT_NO", length = 30)
+        @Column(name = "FROM_ACCT_NO", length = 200)
         private String fromAcctNo;
 
-        @Column(name = "FROM_ACCT_NAME", length = 100)
+        @Column(name = "FROM_ACCT_NAME", length = 500)
         private String fromAcctName;
 
-        @Column(name = "FROM_ACCT_CCY", length = 3)
+        @Column(name = "FROM_ACCT_CCY", length = 30)
         private String fromAcctCcy;
 
         @Column(name = "FROM_ACCT_AMOUNT")
         private BigDecimal fromAcctAmount;
 
-        @Column(name = "TO_ACCT_NO", length = 30)
+        @Column(name = "TO_ACCT_NO", length = 300)
         private String toAcctNo;
 
         @Column(name = "TO_ACCT_NAME", length = 100)
         private String toAcctName;
 
-        @Column(name = "TO_ACCT_CCY", length = 3)
+        @Column(name = "TO_ACCT_CCY", length = 30)
         private String toAcctCcy;
 
         @Column(name = "TO_ACCT_AMOUNT")
@@ -54,7 +54,7 @@ import java.time.LocalDate;
         @Column(name = "TOTAL_AMOUNT")
         private BigDecimal totalAmount;
 
-        @Column(name = "TXN_TYPE", length = 20)
+        @Column(name = "TXN_TYPE", length = 200)
         private String txnType;
 
         @Column(name = "REMARK", length = 255)
@@ -75,10 +75,10 @@ import java.time.LocalDate;
         @Column(name = "CORE_RES", length = 1500)
         private String coreRes;
 
-        @Column(name = "STATUS", length = 200)
+        @Column(name = "STATUS", length = 500)
         private String status;
 
-        @Column(name = "USER_REP", length = 200)
+        @Column(name = "USER_REP", length = 500)
         private String userRep;
 
         @Column(name = "REP_DATE")

@@ -42,10 +42,11 @@ public class BatchService {
     private final CorebankService corebankService;
     private final RestTemplate rest = new RestTemplate();
 
-    public void runForDate(LocalDate date) {
-        log.info("Running for date: " + date);
+    public void runForDate() {
+        LocalDate date = LocalDate.now();
+        log.info("=======start running for date========:" + date);
+
         List<AutoDebitCompanyEntity> companies = companyRepo.findByStatus("open");
-        log.info("Found {} companies", companies.size());
         for (AutoDebitCompanyEntity comp : companies) {
 
             if (comp.getBatRunningDate() == null) continue;
@@ -54,39 +55,44 @@ public class BatchService {
             //ກວດສອບ Percent ກ່ອນຈະ ຕັດເງິນ
             BigDecimal percent = comp.getPercent() == null ? BigDecimal.ZERO : comp.getPercent();
             // get mappers for company
-            log.info("Companies code: " + comp.getCompanyCode());
             List<AutoDebitAccountMapperEntity> maps = mapperRepo.findByPartnerName(String.valueOf(comp.getCompanyCode()));
-            //ກ
+
             for (AutoDebitAccountMapperEntity m : maps) {
                 if (m.getStatus() == null || m.getStatus() != 1) continue; // only open
-                //ກວດສອບບັນຊີ ທີຈະມາຕັດເງິນ credit
-                var accOpt = accountRepo.findByPartNerNameAndAccountCcy(m.getPartnerName(),m.getFromAcctCcy());
 
+                // check account
+                var accOpt = accountRepo.findByPartNerNameAndAccountCcy(m.getPartnerName(), m.getFromAcctCcy());
                 if (accOpt.isEmpty()) continue;
 
                 AutoDebitAccountEntity acc = accOpt.get();
-                //let insert data bat running to account txn
-               // mapperInsertDataToAccountTxn(percent,comp,m,acc);
-                AutoDebitAccountTxnEntity mapperTxn = mapperInsertDataToAccountTxn(percent,comp,m,acc);
-                log.info("mapperTxn {}",mapperTxn.toString());
 
-                //cal to fund transfer
-                fundTransferResAPIStep01(comp,m,acc,mapperTxn);
+                // check if transaction already exists for this account/date
+                Optional<AutoDebitAccountTxnEntity> checkTxn = txnRepo.findByFromAcctNoAndTxnDate(m.getFromAcctNo(), date);
+                if (checkTxn.isPresent()) {
+                    log.info("Transaction already exists for account {} on date {}", m.getFromAcctNo(), date);
+                    continue; // skip insert
+                }
+
+                // insert new transaction
+                AutoDebitAccountTxnEntity mapperTxn = mapperInsertDataToAccountTxn(percent, comp, m, acc);
+
+                // call fund transfer
+                fundTransferResAPIStep01(comp, m, acc, mapperTxn);
             }
+
         }
     }
+
     //ຍິງໄປຕັດເງິນ ຢູ່ T24
     public AutoDebitAccountTxnEntity mapperInsertDataToAccountTxn (BigDecimal percent, AutoDebitCompanyEntity comp,
                                                                     AutoDebitAccountMapperEntity m , AutoDebitAccountEntity acc  ){
         String reference = RefGenerator.generateReference();
-        BigDecimal closing = fetchClosingBalance(acc.getAccountNo());
+        BigDecimal closing = fetchClosingBalance(m.getFromAcctNo());
         BigDecimal amount = closing.multiply(percent)
                 .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
 
         // amount will now have exactly 2 decimal places
         System.out.println(amount); // e.g. 100.20
-
-
         AutoDebitAccountTxnEntity txn = new AutoDebitAccountTxnEntity();
         txn.setFromAcctNo(m.getFromAcctNo());
         txn.setFromAcctName(m.getFromAcctName());
@@ -102,7 +108,7 @@ public class BatchService {
         txn.setToAcctAmount(amount);
         txn.setTotalAmount(amount);
         txn.setTxnType("ACTC");
-        txn.setRemark("auto debit");
+        txn.setRemark("auto debit edl");
         txn.setRef("");
         txn.setReference(reference);
         txn.setCoreTxnDate(LocalDate.from(LocalDateTime.now()).atStartOfDay());///resposne from core bank
@@ -210,7 +216,7 @@ public class BatchService {
                                                              AutoDebitAccountMapperEntity m , AutoDebitAccountEntity acc,AutoDebitAccountTxnEntity txn ) {
         // Construct transaction reference
         String txnRef = String.format(
-                "DEBIT*AUTO*%s*%s",
+                "auto*debit*%s*%s",
                 txn.getReference(),
                 comp.getCompanyName()
         );
@@ -252,6 +258,7 @@ public class BatchService {
         return revertT24;
     }
 
+
     public void updateStatusAutoDebit(AutoDebitAccountTxnEntity accountTxn,
                                       FundTransferReq fundTransferReq,
                                       FundTransferRes<FundTransferDataResponse> fundTransferResAPIResponse) {
@@ -265,40 +272,26 @@ public class BatchService {
 
             AutoDebitAccountTxnEntity txn = txnEntityOpt.get();
 
-            // Map core status codes to descriptive messages
+            // Map core status codes using enum
             String coreStatus = fundTransferResAPIResponse != null ? fundTransferResAPIResponse.getStatus() : null;
-            String mappedStatus;
-            switch (coreStatus) {
-                case "00":
-                    mappedStatus = "SUCCEEDED";
-                    break;
-                case "05":
-                    mappedStatus = "TIMEOUT";
-                    break;
-                case "01":
-                    mappedStatus = "INSUFFICIENT_FUND";
-                    break;
-                case "103":
-                    mappedStatus = "INVALID_RESPONSE";
-                    break;
-                default:
-                    mappedStatus = "UNKNOWN";
-            }
+            String mappedStatus = CoreBankStatus.fromCode(coreStatus);
 
-            // Core transaction date (current timestamp)
             txn.setCoreTxnDate(LocalDateTime.now());
-
-            // Store request/response payloads safely
             txn.setCoreReq(fundTransferReq != null ? fundTransferReq.toString() : "N/A");
             txn.setCoreRes(fundTransferResAPIResponse != null ? fundTransferResAPIResponse.toString() : "N/A");
 
-            // Status message from core bank (mapped)
+            if (fundTransferResAPIResponse != null
+                    && fundTransferResAPIResponse.getDataResponse() != null
+                    && fundTransferResAPIResponse.getDataResponse().getT24RefID() != null) {
+                txn.setRef(fundTransferResAPIResponse.getDataResponse().getT24RefID());
+            }
+
             txn.setStatus(mappedStatus);
 
-            // Persist updated transaction
             txnRepo.save(txn);
 
-            log.info("AutoDebit transaction updated successfully with ref={}, status={}", txn.getRef(), mappedStatus);
+            log.info("AutoDebit transaction updated successfully with keyId={}, ref={}, status={}",
+                    txn.getKeyId(), txn.getRef(), mappedStatus);
 
         } catch (Exception ex) {
             log.error("Failed to update AutoDebit transaction status for keyId={}", accountTxn.getKeyId(), ex);
@@ -306,5 +299,31 @@ public class BatchService {
         }
     }
 
+    public enum CoreBankStatus {
+        SUCCEEDED("00", "SUCCEEDED"),
+        TIMEOUT("05", "TIMEOUT"),
+        INSUFFICIENT_FUND("01", "INSUFFICIENT_FUND"),
+        INVALID_RESPONSE("103", "INVALID_RESPONSE"),
+        UNKNOWN(null, "UNKNOWN");
+
+        private final String code;
+        private final String description;
+
+        CoreBankStatus(String code, String description) {
+            this.code = code;
+            this.description = description;
+        }
+
+        public static String fromCode(String code) {
+            for (CoreBankStatus status : values()) {
+                if (status.code != null && status.code.equals(code)) {
+                    return status.description;
+                }
+            }
+            return UNKNOWN.description;
+        }
+    }
 
 }
+
+
