@@ -27,6 +27,9 @@ import java.time.LocalDate;
         @Column(name = "FROM_ACCT_CCY", length = 30)
         private String fromAcctCcy;
 
+        @Column(name = "FROM_ACCT_TYPE", length = 200)
+        private String fromAcctType;
+
         @Column(name = "FROM_ACCT_AMOUNT")
         private BigDecimal fromAcctAmount;
 
