@@ -42,7 +42,48 @@ public class BatchService {
     private final CorebankService corebankService;
     private final RestTemplate rest = new RestTemplate();
 
-    public void runForDate() {
+    public void runForDateRetry() {
+        LocalDate date = LocalDate.now();
+        log.info("=======start running for date========:" + date);
+
+        List<AutoDebitCompanyEntity> companies = companyRepo.findByStatus("open");
+        for (AutoDebitCompanyEntity comp : companies) {
+
+            if (comp.getBatRunningDate() == null) continue;
+            //ກວດສອບວັນທີ Running bat
+            // if (!comp.getBatRunningDate().equals(date)) continue;
+            //ກວດສອບ Percent ກ່ອນຈະ ຕັດເງິນ
+            BigDecimal percent = comp.getPercent() == null ? BigDecimal.ZERO : comp.getPercent();
+            // get mappers for company
+            List<AutoDebitAccountMapperEntity> maps = mapperRepo.findByPartnerName(String.valueOf(comp.getCompanyCode()));
+
+            for (AutoDebitAccountMapperEntity m : maps) {
+                if (m.getStatus() == null || m.getStatus() != 1) continue; // only open
+
+                // check account
+                var accOpt = accountRepo.findByPartNerNameAndAccountCcy(m.getPartnerName(), m.getFromAcctCcy());
+                if (accOpt.isEmpty()) continue;
+
+                AutoDebitAccountEntity acc = accOpt.get();
+
+                // check if transaction already exists for this account/date
+                Optional<AutoDebitAccountTxnEntity> checkTxn = txnRepo.findByFromAcctNoAndTxnDateStatus(m.getFromAcctNo(), date,"retry");
+                if (!checkTxn.isPresent()) {
+                    log.info("Transaction already exists for account {} on date {}", m.getFromAcctNo(), date);
+                    continue; // skip insert
+                }
+
+                // insert new transaction
+                AutoDebitAccountTxnEntity mapperTxn = mapperInsertDataToAccountTxn(percent, comp, m, acc);
+
+                // call fund transfer
+                fundTransferResAPIStep01(comp, m, acc, mapperTxn);
+            }
+
+        }
+    }
+
+    public void runForMonth() {
         LocalDate date = LocalDate.now();
         log.info("=======start running for date========:" + date);
 
@@ -257,7 +298,6 @@ public class BatchService {
         log.info("revertT24 Response : {}",revertT24.getData());
         return revertT24;
     }
-
 
     public void updateStatusAutoDebit(AutoDebitAccountTxnEntity accountTxn,
                                       FundTransferReq fundTransferReq,

@@ -10,5 +10,6 @@ import java.util.Optional;
 @Repository
 public interface AutoDebitAccountTxnRepository extends JpaRepository<AutoDebitAccountTxnEntity, Long> {
 
+    Optional<AutoDebitAccountTxnEntity> findByFromAcctNoAndTxnDateStatus(String fromAcctNo, LocalDate txnDate,String status);
     Optional<AutoDebitAccountTxnEntity> findByFromAcctNoAndTxnDate(String fromAcctNo, LocalDate txnDate);
 }
