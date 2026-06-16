@@ -27,7 +27,7 @@ public class ScheduledBatchRunner {
     public void scheduledRun() {
         try {
             log.info("ScheduledBatchRunner: starting batch for date" );
-            batchService.runForDate();
+            batchService.runForMonth();
             log.info("ScheduledBatchRunner: finished batch for date" );
         } catch (Exception ex) {
             log.error("ScheduledBatchRunner: error during batch run", ex);

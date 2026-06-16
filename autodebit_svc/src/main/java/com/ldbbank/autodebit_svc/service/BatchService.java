@@ -67,7 +67,7 @@ public class BatchService {
                 AutoDebitAccountEntity acc = accOpt.get();
 
                 // check if transaction already exists for this account/date
-                Optional<AutoDebitAccountTxnEntity> checkTxn = txnRepo.findByFromAcctNoAndTxnDateStatus(m.getFromAcctNo(), date,"retry");
+                Optional<AutoDebitAccountTxnEntity> checkTxn = txnRepo.findByFromAcctNoAndTxnDateAndStatus(m.getFromAcctNo(), date,"retry");
                 if (!checkTxn.isPresent()) {
                     log.info("Transaction already exists for account {} on date {}", m.getFromAcctNo(), date);
                     continue; // skip insert

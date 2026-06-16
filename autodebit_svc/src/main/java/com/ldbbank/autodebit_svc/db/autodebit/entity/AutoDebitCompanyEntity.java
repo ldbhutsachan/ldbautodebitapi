@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import javax.persistence.*;
 
 import lombok.Data;
+import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDateTime;
 
@@ -17,7 +18,6 @@ public class AutoDebitCompanyEntity {
     @SequenceGenerator(name = "COMPANY_SEQUENCE", sequenceName = "COMPANY_SEQUENCE", allocationSize = 1)
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "COMPANY_SEQUENCE")
     @Column(name = "COMPANYNO", length = 64)
-
     private Long companyCode;
 
     @Column(name = "COMPANY_NAME", length = 256)
@@ -29,11 +29,10 @@ public class AutoDebitCompanyEntity {
     @Column(name = "PERCENT")
     private java.math.BigDecimal percent;
 
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     @Column(name = "BAT_RUNNING_DATE")
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime batRunningDate;
-
-
 
     @Column(name = "MAKE_BY_AT")
     private LocalDateTime  createdAt;

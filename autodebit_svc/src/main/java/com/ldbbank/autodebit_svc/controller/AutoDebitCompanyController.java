@@ -2,15 +2,17 @@ package com.ldbbank.autodebit_svc.controller;
 
 import com.ldbbank.autodebit_svc.db.autodebit.entity.AutoDebitCompanyEntity;
 import com.ldbbank.autodebit_svc.excaption.ApiResponse;
+import com.ldbbank.autodebit_svc.model.user.ClientInfo;
 import com.ldbbank.autodebit_svc.service.AutoDebitCompanyService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.Map;
-
+@Slf4j
 @RequiredArgsConstructor
 @RestController
 @CrossOrigin(origins = "*")
@@ -22,9 +24,12 @@ public class AutoDebitCompanyController {
 
     @PostMapping("/create")
     public ResponseEntity<?> saveCompanyWithImage(
+            @RequestAttribute(value = "clientInfo") ClientInfo clientInfo,
             @ModelAttribute AutoDebitCompanyEntity entity,
             @RequestParam(value = "file", required = false) MultipartFile file) {
         try {
+            log.info("Saving company with image"+clientInfo.getUsername());
+
             Map<String, String> info = null;
             if (file != null && !file.isEmpty()) {
                 info = mediaUploadService.store(file, "companies");
@@ -34,12 +39,12 @@ public class AutoDebitCompanyController {
             AutoDebitCompanyEntity saved = service.save(entity);
 
             if (saved == null) {
-                return ResponseEntity.status(404).body(new ApiResponse<>("01", "Not found", null));
+                return ResponseEntity.status(404).body(new ApiResponse<>("01", "ບໍ່ພົບຂໍ້ມູນ !!!", null));
             }
 
-            return ResponseEntity.ok(new ApiResponse<>("00", "Company saved successfully", info));
+            return ResponseEntity.ok(new ApiResponse<>("00", "ບັນທືກຂໍ້ມູນ ສໍາເລັດ !!!", info));
         } catch (Exception ex) {
-            return ResponseEntity.status(500).body(new ApiResponse<>("02", "Upload failed: " + ex.getMessage(), null));
+            return ResponseEntity.status(500).body(new ApiResponse<>("05", "ບໍ່ສາມາດບັນທືກ ບໍລິສັດໄດ້ !!!  : " + ex.getMessage(), null));
         }
     }
 
