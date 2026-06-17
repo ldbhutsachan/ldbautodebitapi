@@ -5,6 +5,7 @@ import com.ldbbank.autodebit_svc.db.autodebit.repository.AutoDebitCompanyReposit
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,8 +18,8 @@ public class AutoDebitCompanyService {
     }
 
     public AutoDebitCompanyEntity save(AutoDebitCompanyEntity e) {
-        e.setCreatedAt(LocalDateTime.now());
-        e.setUpdatedAt(LocalDateTime.now());
+        e.setCreatedAt(new Date());
+        e.setUpdatedAt(new Date());
         if (e.getStatus() == null) e.setStatus("open");
         return repo.save(e);
     }
@@ -44,7 +45,7 @@ public class AutoDebitCompanyService {
                 existing.setBatRunningDate(change.getBatRunningDate());
             }
 
-            existing.setUpdatedAt(LocalDateTime.now());
+            existing.setUpdatedAt(new Date());
 
             return repo.save(existing);
         });
@@ -53,7 +54,7 @@ public class AutoDebitCompanyService {
     public boolean disable(Long id) {
         return repo.findById(id).map(existing -> {
             existing.setStatus("close");
-            existing.setUpdatedAt(LocalDateTime.now());
+            existing.setUpdatedAt(new Date());
             repo.save(existing);
             return true;
         }).orElse(false);
@@ -71,7 +72,7 @@ public class AutoDebitCompanyService {
         return repo.findById(id).map(existing -> {
             existing.setImagePath(imagePath);
             existing.setImageName(imageName);
-            existing.setUpdatedAt(LocalDateTime.now());
+            existing.setUpdatedAt(new Date());
             repo.save(existing);
             return true;
         }).orElse(false);

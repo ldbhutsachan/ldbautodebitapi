@@ -47,7 +47,7 @@ public class BatchController {
 
     private final NotiWhatAppService notiWhatAppServiceImpl;
 
-    @Scheduled(cron = "0 08 28 * * *")
+   // @Scheduled(cron = "0 08 28 * * *")
     @PostMapping("/startWhatAppRetry")
     public ResponseEntity<?> reportEdlDaily() {
         // Record the start time

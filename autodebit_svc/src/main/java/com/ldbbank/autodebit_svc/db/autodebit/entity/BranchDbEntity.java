@@ -1,18 +1,18 @@
 package com.ldbbank.autodebit_svc.db.autodebit.entity;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
+
 import lombok.Data;
 
 import java.time.LocalDateTime;
 @Data
 @Entity
-@Table(name = "BRANCH")
+@Table(name = "AUTO_DEBIT_BRANCH")
 public class BranchDbEntity {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "AUTO_DEBIT_BRANCH_SEQUENCE")
+    @SequenceGenerator(name = "AUTO_DEBIT_BRANCH_SEQUENCE", sequenceName = "AUTO_DEBIT_BRANCH_SEQUENCE", allocationSize = 1)
     @Column(name = "BRANCH_NO", nullable = false)
     private Long branchNo;
 
@@ -33,6 +33,9 @@ public class BranchDbEntity {
 
     @Column(name = "STATUS", length = 100)
     private String status;
+
+    @Column(name = "PARTNER_ID", length = 100)
+    private String partnerId;
 
 
 }

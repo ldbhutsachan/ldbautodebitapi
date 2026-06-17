@@ -5,7 +5,6 @@ import com.ldbbank.autodebit_svc.model.LoginResponse;
 import com.ldbbank.autodebit_svc.service.AuthService;
 import com.ldbbank.autodebit_svc.db.autodebit.entity.UserDbEntity;
 import com.ldbbank.autodebit_svc.db.autodebit.entity.VvUserEntity;
-import com.ldbbank.autodebit_svc.db.autodebit.repository.MapUserMenuRepository;
 import com.ldbbank.autodebit_svc.db.autodebit.repository.VvUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -20,7 +19,6 @@ import java.util.*;
 public class AuthController {
 
     private final AuthService authService;
-    private final MapUserMenuRepository mapUserMenuRepository;
     private final VvUserRepository vvUserRepository;
 
     @PostMapping("/login")
@@ -54,9 +52,6 @@ public class AuthController {
             }
         }
         resp.setMenu(menu);
-
-
-
         return ResponseEntity.ok(Map.of("code", "00", "message", "Success", "data", resp));
     }
 

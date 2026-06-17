@@ -1,9 +1,7 @@
 package com.ldbbank.autodebit_svc.db.autodebit.entity;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
+
 import lombok.Data;
 import java.time.LocalDate;
 
@@ -13,8 +11,11 @@ import java.time.LocalDate;
 public class AutoDebitAccountMapperEntity {
 
     @Id
-    @Column(name = "KEY_ID", nullable = false)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "ACCOUNT_SEQUENCE")
+    @SequenceGenerator(name = "ACCOUNT_SEQUENCE", sequenceName = "ACCOUNT_SEQUENCE", allocationSize = 1)
+    @Column(name = "KEY_ID")
     private Long keyId;
+
 
     @Column(name = "FROM_ACCT_NO", nullable = false, length = 30)
     private String fromAcctNo;

@@ -2,13 +2,13 @@ package com.ldbbank.autodebit_svc.controller;
 
 import com.ldbbank.autodebit_svc.db.autodebit.entity.AutoDebitCompanyEntity;
 import com.ldbbank.autodebit_svc.excaption.ApiResponse;
-import com.ldbbank.autodebit_svc.model.user.ClientInfo;
 import com.ldbbank.autodebit_svc.service.AutoDebitCompanyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.security.oauth2.server.resource.introspection.OAuth2IntrospectionAuthenticatedPrincipal;
 
 import java.io.IOException;
 import java.util.Map;
@@ -24,12 +24,9 @@ public class AutoDebitCompanyController {
 
     @PostMapping("/create")
     public ResponseEntity<?> saveCompanyWithImage(
-            @RequestAttribute(value = "clientInfo") ClientInfo clientInfo,
             @ModelAttribute AutoDebitCompanyEntity entity,
             @RequestParam(value = "file", required = false) MultipartFile file) {
         try {
-            log.info("Saving company with image"+clientInfo.getUsername());
-
             Map<String, String> info = null;
             if (file != null && !file.isEmpty()) {
                 info = mediaUploadService.store(file, "companies");

@@ -145,6 +145,16 @@
 			<artifactId>swagger-annotations</artifactId>
 			<version>1.5.20</version>
 		</dependency>
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-web</artifactId>
+			<version>6.5.10</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-oauth2-resource-server</artifactId>
+			<version>6.5.10</version>
+		</dependency>
 	</dependencies>
 
 	<build>

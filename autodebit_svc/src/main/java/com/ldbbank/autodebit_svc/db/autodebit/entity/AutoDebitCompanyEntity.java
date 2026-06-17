@@ -8,6 +8,7 @@ import lombok.Data;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDateTime;
+import java.util.Date;
 
 @Data
 @Entity
@@ -35,10 +36,10 @@ public class AutoDebitCompanyEntity {
     private LocalDateTime batRunningDate;
 
     @Column(name = "MAKE_BY_AT")
-    private LocalDateTime  createdAt;
+    private Date  createdAt;
 
     @Column(name = "UPDATED_AT")
-    private LocalDateTime  updatedAt;
+    private Date updatedAt;
 
     @Column(name = "IMAGE_PATH", length = 1024)
     private String imagePath;

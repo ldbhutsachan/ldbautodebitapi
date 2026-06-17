@@ -11,6 +11,7 @@ import com.ldbbank.autodebit_svc.db.autodebit.repository.AutoDebitCompanyReposit
 import com.ldbbank.autodebit_svc.db.autodebit.repository.SectionRepository;
 import com.ldbbank.autodebit_svc.db.autodebit.repository.UserDbRepository;
 import com.ldbbank.autodebit_svc.model.AutoDebitAccountMapperDto;
+import com.ldbbank.autodebit_svc.model.AutoDebitAccountMapperReq;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -40,12 +41,33 @@ public class AutoDebitAccountMapperService {
         this.userRepo = userRepo;
     }
 
-    public AutoDebitAccountMapperEntity save(AutoDebitAccountMapperEntity e) {
-        LocalDateTime now = LocalDateTime.now();
-        e.setUserDate(LocalDate.from(now));
-        e.setEditingDate(LocalDate.from(now));
-        if (e.getStatus() == null) e.setStatus(1);
-        return mapperRepo.save(e);
+    public AutoDebitAccountMapperEntity save(AutoDebitAccountMapperReq req) {
+        AutoDebitAccountMapperEntity entity = new AutoDebitAccountMapperEntity();
+
+        // Map fields from request to entity
+        entity.setFromAcctNo(req.getFromAcctNo());
+        entity.setFromAcctName(req.getFromAcctName());
+        entity.setFromAcctCcy(req.getFromAcctCcy());
+        entity.setFromAcctType(req.getFromAcctType());
+        entity.setToAcctNo(req.getToAcctNo());
+        entity.setToAcctName(req.getToAcctName());
+        entity.setToAcctCcy(req.getToAcctCcy());
+        entity.setRemark(req.getRemark());
+        entity.setUserBy(req.getUserBy());
+        entity.setUserDate(req.getUserDate());
+        entity.setStatus(req.getStatus());
+        entity.setPartnerName(req.getPartnerName());
+        entity.setBranchCode(req.getBranchCode());
+
+        // Optional: set defaults for fields not in request
+        entity.setUserEditing(null);
+        entity.setEditingDate(null);
+        entity.setUserStatusBy(null);
+        entity.setUserStatusDate(null);
+        entity.setSignature(null);
+
+        // Save entity
+        return mapperRepo.save(entity);
     }
 
     public Optional<AutoDebitAccountMapperEntity> update(Long id, AutoDebitAccountMapperEntity change) {

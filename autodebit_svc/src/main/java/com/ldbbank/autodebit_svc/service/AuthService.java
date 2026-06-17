@@ -3,6 +3,7 @@ package com.ldbbank.autodebit_svc.service;
 import com.ldbbank.autodebit_svc.db.autodebit.entity.UserDbEntity;
 import com.ldbbank.autodebit_svc.db.autodebit.repository.UserDbRepository;
 import org.springframework.stereotype.Service;
+import unitl.JwtTokenUtil;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -59,7 +60,7 @@ public class AuthService {
         claims.put("userName", user.getUserName());
         claims.put("name", user.getName());
         // 30 minutes expiry
-        return com.ldbbank.autodebit_svc.util.JwtTokenUtil.generateToken(claims, String.valueOf(user.getUserId()), Duration.ofMinutes(30));
+        return JwtTokenUtil.generateToken(claims, String.valueOf(user.getUserId()), Duration.ofMinutes(30));
     }
 
     public String createRefreshToken(String username) {
