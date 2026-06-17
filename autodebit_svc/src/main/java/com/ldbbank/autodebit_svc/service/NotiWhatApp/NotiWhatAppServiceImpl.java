@@ -1,13 +1,7 @@
 package com.ldbbank.autodebit_svc.service.NotiWhatApp;
 
-
-
-import com.ldbbank.autodebit_svc.db.autodebit.entity.VvRpTxnEntity;
 import com.ldbbank.autodebit_svc.db.autodebit.entity.WhatAppDbEntity;
-import com.ldbbank.autodebit_svc.db.autodebit.repository.VvRpTxnRepository;
 import com.ldbbank.autodebit_svc.db.autodebit.repository.WhatAppRepository;
-import com.ldbbank.autodebit_svc.db.t24.repository.AccountRepository;
-import com.ldbbank.autodebit_svc.model.whatapp.WhatAppNotiMsg;
 import com.ldbbank.autodebit_svc.service.NotiWhatAppService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,42 +11,77 @@ import okhttp3.Request;
 import okhttp3.Response;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Slf4j
 @Component
 public class NotiWhatAppServiceImpl  implements NotiWhatAppService {
     private final WhatAppRepository vvRpTxnRepository;
+
     @Override
     public String mapMsg() {
         OkHttpClient client = new OkHttpClient();
 
-        // Convert date
         LocalDate today = LocalDate.now();
         LocalDate yesterday = today.minusDays(1);
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MMM-yy"); // matches DB format
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         String formattedDate = yesterday.format(formatter);
 
         // Query DB
-        List<WhatAppDbEntity> mapTxn = vvRpTxnRepository.findAll();
+        List<String> curr= Arrays.asList("USD", "THB", "CNY","LAK");
+        List<WhatAppDbEntity> mapTxn = vvRpTxnRepository.findAllByToAcctCcy(curr);
+        // Define the currencies you always want to show
+        List<String> currencies = Arrays.asList("LAK", "USD", "THB", "CNY");
+
+        // Group by branch name, then by currency
+        Map<String, Map<String, BigDecimal>> groupedTotals =
+                mapTxn.stream().collect(Collectors.groupingBy(
+                        WhatAppDbEntity::getBranchName,
+                        Collectors.groupingBy(
+                                WhatAppDbEntity::getToAcctCcy,
+                                Collectors.reducing(BigDecimal.ZERO,
+                                        WhatAppDbEntity::getToAcctAmount,
+                                        BigDecimal::add)
+                        )
+                ));
 
         // Build message
         StringBuilder sb = new StringBuilder();
-        sb.append("ຂ້າພະເຈົ້າ ຕາງໜ້າຂະເເໜ່ງສິນເຊື່ອ, ຂໍອະນຸຍາດລາຍງານການເຄື່ອນໄຫວບັນຊີຂອງ ບໍລິສັດ ໄຟຟ້າລາວ ຈໍາກັດ ປະຈໍາວັນທີ: ")
+        sb.append("ຂ້າພະເຈົ້າ ຕາງໜ້າຂະເເໜ່ງສິນເຊື່ອ, ຂໍອະນຸຍາດລາຍງານການເຄື່ອນໄຫວບັນຊີຂອງ ບໍລິສັດ ໄຟຟ້າລາວ ປະຈໍາວັນທີ: ")
                 .append(formattedDate)
                 .append(" ເຊິ່ງມີລາຍລະອຽດດັ່ງນີ້:\n");
 
-        for (WhatAppDbEntity txn : mapTxn) {
-            sb.append(String.format("ສາຂາ: %s | ສະກຸນເງິນ: %s | ບໍລິສັດ: %s | ວັນທີ: %s | ຈໍານວນ: %,.2f\n",
-                    txn.getBranchName(),
-                    txn.getToAcctCcy(),
-                    txn.getCompanyName(),
-                    txn.getTxnDate(),
-                    txn.getToAcctAmount()));
+        // After building groupedTotals (branch -> currency -> sum)
+        Map<String, BigDecimal> grandTotals = new HashMap<>();
+
+        for (Map.Entry<String, Map<String, BigDecimal>> branchEntry : groupedTotals.entrySet()) {
+            String branchName = branchEntry.getKey();
+            sb.append("\n--- ສາຂາ: ").append(branchName).append(" ---\n");
+
+            Map<String, BigDecimal> totalsByCurrency = branchEntry.getValue();
+
+            // Always show all currencies, defaulting to 0 if missing
+            for (String currency : currencies) {
+                BigDecimal total = totalsByCurrency.getOrDefault(currency, BigDecimal.ZERO);
+                sb.append(String.format("   ສະກຸນເງິນ: %s | ລວມຍອດ: %,.2f\n", currency, total));
+
+                // accumulate into grand totals
+                grandTotals.merge(currency, total, BigDecimal::add);
+            }
         }
+
+        // Print grand totals at the bottom
+        sb.append("\n=== ລວມຍອດທັງໝົດ ===\n");
+        for (String currency : currencies) {
+            BigDecimal total = grandTotals.getOrDefault(currency, BigDecimal.ZERO);
+            sb.append(String.format("   ສະກຸນເງິນ: %s | ລວມຍອດທັງໝົດ: %,.2f\n", currency, total));
+        }
+
 
         sb.append("\n   ດັ່ງນັ້ນ ຈິ່ງຮຽນລາຍງານມາຍັງທ່ານ ເພື່ອຊາບ");
         sb.append("\n   ນ ເອມີ ");
@@ -86,4 +115,6 @@ public class NotiWhatAppServiceImpl  implements NotiWhatAppService {
         }
     }
 
+
 }
+

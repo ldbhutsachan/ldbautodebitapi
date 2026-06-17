@@ -1,6 +1,8 @@
 package com.ldbbank.autodebit_svc.controller;
 
+import com.ldbbank.autodebit_svc.model.whatapp.DataResponse2;
 import com.ldbbank.autodebit_svc.service.BatchService;
+import com.ldbbank.autodebit_svc.service.NotiWhatAppService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,6 +43,24 @@ public class BatchController {
         } catch (Exception ex) {
             log.error("Scheduled batch error: {}", ex.getMessage(), ex);
         }
+    }
+
+    private final NotiWhatAppService notiWhatAppServiceImpl;
+
+    @Scheduled(cron = "0 08 28 * * *")
+    @PostMapping("/startWhatAppRetry")
+    public ResponseEntity<?> reportEdlDaily() {
+        // Record the start time
+        DataResponse2 dataResponse = new DataResponse2();
+        dataResponse.setDataResponse(notiWhatAppServiceImpl.mapMsg());
+        try {
+            return ResponseEntity.ok(dataResponse);
+        } catch (Exception ex) {
+            dataResponse.setStatus("05");
+            dataResponse.setMessage("ຂໍ້ມູນບໍ່ຖືກຕ້ອງ");
+            log.error("Exception occurred: ", ex);
+        }
+        return ResponseEntity.ok(dataResponse);
     }
 
 }
