@@ -52,7 +52,7 @@ public class NotiWhatAppServiceImpl  implements NotiWhatAppService {
 
         // Build message
         StringBuilder sb = new StringBuilder();
-        sb.append("ຂ້າພະເຈົ້າ ຕາງໜ້າຂະເເໜ່ງສິນເຊື່ອ, ຂໍອະນຸຍາດລາຍງານການເຄື່ອນໄຫວບັນຊີຂອງ ບໍລິສັດ ໄຟຟ້າລາວ ປະຈໍາວັນທີ: ")
+        sb.append("ຂ້າພະເຈົ້າ ຕາງໜ້າຂະເເໜ່ງສິນເຊື່ອ, ຂໍອະນຸຍາດລາຍງານການຕັດບັນຊີຂອງ ບໍລິສັດ ໄຟຟ້າລາວ ປະຈໍາວັນທີ: ")
                 .append(formattedDate)
                 .append(" ເຊິ່ງມີລາຍລະອຽດດັ່ງນີ້:\n");
 
