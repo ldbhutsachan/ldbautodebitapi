@@ -9,5 +9,6 @@ import java.util.List;
 @Repository
 public interface AutoDebitAccountMapperRepository extends JpaRepository<AutoDebitAccountMapperEntity, Long> {
     List<AutoDebitAccountMapperEntity> findByStatus(Integer status);
+    List<AutoDebitAccountMapperEntity> findAll();
     List<AutoDebitAccountMapperEntity> findByPartnerName(String partnerName);
 }

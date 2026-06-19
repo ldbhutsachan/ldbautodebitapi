@@ -29,15 +29,6 @@ public class AutoDebitAccountMapperEntity {
     @Column(name = "FROM_ACCT_TYPE", nullable = false, length = 200)
     private String fromAcctType;
 
-    @Column(name = "TO_ACCT_NO", nullable = false, length = 30)
-    private String toAcctNo;
-
-    @Column(name = "TO_ACCT_NAME", length = 100)
-    private String toAcctName;
-
-    @Column(name = "TO_ACCT_CCY", nullable = false, length = 100)
-    private String toAcctCcy;
-
     @Column(name = "TXN_TYPE", length = 20)
     private String txnType;
 

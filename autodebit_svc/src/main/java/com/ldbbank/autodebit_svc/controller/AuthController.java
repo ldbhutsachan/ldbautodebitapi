@@ -7,11 +7,17 @@ import com.ldbbank.autodebit_svc.db.autodebit.entity.UserDbEntity;
 import com.ldbbank.autodebit_svc.db.autodebit.entity.VvUserEntity;
 import com.ldbbank.autodebit_svc.db.autodebit.repository.VvUserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import javax.persistence.*;
+import javax.servlet.http.HttpServletRequest;
 import java.util.*;
-
+import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 @RestController
 @CrossOrigin(origins = "*")
@@ -43,16 +49,22 @@ public class AuthController {
         List<Map<String, Object>> menu = new ArrayList<>();
         if (menus != null) {
             for (VvUserEntity m : menus) {
+                // Build child menu list for this menu item
+                List<Map<String, Object>> childMenu = new ArrayList<>();
+                // Add parent menu with childMenu included
                 menu.add(Map.of(
-                        "id", m.getMenuNo(),
-                        "label", m.getMenuName(),
-                        "path", m.getMenuPath(),
-                        "icon", m.getMenuIcon()
+                        "menuId", m.getMenuNo(),
+                        "menuLo", m.getMenuName(),
+                        "to", m.getMenuPath(),
+                        "iconMenu", m.getMenuIcon(),
+                        "childMenu", childMenu
                 ));
             }
         }
+
         resp.setMenu(menu);
-        return ResponseEntity.ok(Map.of("code", "00", "message", "Success", "data", resp));
+
+        return ResponseEntity.ok(Map.of("status", "00", "message", "Success", "dataResponse", resp));
     }
 
     @PostMapping("/refresh")
@@ -61,7 +73,7 @@ public class AuthController {
         if (refreshToken == null) return ResponseEntity.badRequest().body(Map.of("code", "02", "message", "refreshToken missing"));
         Optional<String> newAccess = authService.refreshAccessToken(refreshToken);
         if (newAccess.isEmpty()) return ResponseEntity.status(401).body(Map.of("code", "03", "message", "Invalid or expired refresh token"));
-        return ResponseEntity.ok(Map.of("code", "00", "message", "Success", "accessToken", "Bearer " + newAccess.get()));
+        return ResponseEntity.ok(Map.of("status", "00", "message", "Success", "accessToken", "Bearer " + newAccess.get()));
     }
 
 
@@ -77,7 +89,10 @@ public class AuthController {
         if (!ok) {
             return ResponseEntity.status(401).body(Map.of("code", "01", "message", "username or old password ບໍ່ຖືກຕ້ອງ!!!"));
         }
-        return ResponseEntity.ok(Map.of("code", "00", "message", "ທ່ານປ່ຽນລະຫັດຜ່ານສໍາເລັດ !!!"));
+        return ResponseEntity.ok(Map.of("status", "00", "message", "ທ່ານປ່ຽນລະຫັດຜ່ານສໍາເລັດ !!!"));
     }
+
+
+
 }
 

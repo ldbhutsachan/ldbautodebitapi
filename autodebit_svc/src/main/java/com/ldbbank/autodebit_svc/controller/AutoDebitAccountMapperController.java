@@ -47,9 +47,9 @@ public class AutoDebitAccountMapperController {
 //        return ResponseEntity.ok(new ApiResponse<>("00", "Status updated", null));
 //    }
 //
-//    @GetMapping
-//    public ResponseEntity<?> listByStatus(@RequestParam(required = false) Integer status) {
-//        if (status == null) return ResponseEntity.ok(new ApiResponse<>("00", "OK", service.findByStatusWithJoin(1)));
-//        return ResponseEntity.ok(new ApiResponse<>("00", "OK", service.findByStatusWithJoin(status)));
-//    }
+
+    @GetMapping("/accountMaper")
+    public ResponseEntity<?> listByStatus() {
+        return ResponseEntity.ok(new ApiResponse<>("00", "OK", service.findMapAccountAll()));
+    }
 }

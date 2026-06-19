@@ -1,17 +1,10 @@
 package com.ldbbank.autodebit_svc.service;
 
-import com.ldbbank.autodebit_svc.db.autodebit.entity.AutoDebitAccountMapperEntity;
-import com.ldbbank.autodebit_svc.db.autodebit.entity.AutoDebitAccountEntity;
-import com.ldbbank.autodebit_svc.db.autodebit.entity.AutoDebitCompanyEntity;
-import com.ldbbank.autodebit_svc.db.autodebit.entity.SectionEntity;
-import com.ldbbank.autodebit_svc.db.autodebit.entity.UserDbEntity;
-import com.ldbbank.autodebit_svc.db.autodebit.repository.AutoDebitAccountMapperRepository;
-import com.ldbbank.autodebit_svc.db.autodebit.repository.AutoDebitAccountRepository;
-import com.ldbbank.autodebit_svc.db.autodebit.repository.AutoDebitCompanyRepository;
-import com.ldbbank.autodebit_svc.db.autodebit.repository.SectionRepository;
-import com.ldbbank.autodebit_svc.db.autodebit.repository.UserDbRepository;
+import com.ldbbank.autodebit_svc.db.autodebit.entity.*;
+import com.ldbbank.autodebit_svc.db.autodebit.repository.*;
 import com.ldbbank.autodebit_svc.model.AutoDebitAccountMapperDto;
 import com.ldbbank.autodebit_svc.model.AutoDebitAccountMapperReq;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -19,27 +12,16 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-
+@RequiredArgsConstructor
 @Service
 public class AutoDebitAccountMapperService {
 
     private final AutoDebitAccountMapperRepository mapperRepo;
+    private final VvRegisterRepository vvRegisterRepository;
     private final AutoDebitAccountRepository accountRepo;
     private final AutoDebitCompanyRepository companyRepo;
     private final SectionRepository sectionRepo;
     private final UserDbRepository userRepo;
-
-    public AutoDebitAccountMapperService(AutoDebitAccountMapperRepository mapperRepo,
-                                         AutoDebitAccountRepository accountRepo,
-                                         AutoDebitCompanyRepository companyRepo,
-                                         SectionRepository sectionRepo,
-                                         UserDbRepository userRepo) {
-        this.mapperRepo = mapperRepo;
-        this.accountRepo = accountRepo;
-        this.companyRepo = companyRepo;
-        this.sectionRepo = sectionRepo;
-        this.userRepo = userRepo;
-    }
 
     public AutoDebitAccountMapperEntity save(AutoDebitAccountMapperReq req) {
         AutoDebitAccountMapperEntity entity = new AutoDebitAccountMapperEntity();
@@ -49,9 +31,6 @@ public class AutoDebitAccountMapperService {
         entity.setFromAcctName(req.getFromAcctName());
         entity.setFromAcctCcy(req.getFromAcctCcy());
         entity.setFromAcctType(req.getFromAcctType());
-        entity.setToAcctNo(req.getToAcctNo());
-        entity.setToAcctName(req.getToAcctName());
-        entity.setToAcctCcy(req.getToAcctCcy());
         entity.setRemark(req.getRemark());
         entity.setUserBy(req.getUserBy());
         entity.setUserDate(req.getUserDate());
@@ -125,6 +104,9 @@ public class AutoDebitAccountMapperService {
             result.add(d);
         }
         return result;
+    }
+    public List<VvRegisterEntity> findMapAccountAll() {
+        return vvRegisterRepository.findAll();
     }
 
     private AutoDebitAccountMapperDto mapToDto(AutoDebitAccountMapperEntity m) {
