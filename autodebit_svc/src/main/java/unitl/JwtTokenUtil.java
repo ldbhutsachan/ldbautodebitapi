@@ -1,4 +1,5 @@
 package unitl;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
@@ -32,5 +33,9 @@ public class JwtTokenUtil {
         } catch (Exception ex) {
             return false;
         }
+    }
+
+    public static Claims parseToken(String token) {
+        return Jwts.parserBuilder().setSigningKey(KEY).build().parseClaimsJws(token).getBody();
     }
 }

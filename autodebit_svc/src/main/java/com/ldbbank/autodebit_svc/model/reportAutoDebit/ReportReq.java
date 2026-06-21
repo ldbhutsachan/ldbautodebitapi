@@ -8,4 +8,5 @@ public class ReportReq {
     private LocalDate startDate;
     private LocalDate endDate;
     private String branchCode;
+    private String accountNo;
 }

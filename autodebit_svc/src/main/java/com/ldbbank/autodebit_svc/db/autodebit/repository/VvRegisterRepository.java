@@ -8,8 +8,5 @@ import java.util.List;
 
 @Repository
 public interface VvRegisterRepository extends JpaRepository<VvRegisterEntity, Long> {
-    // You can add custom query methods here if needed
-    List<VvRegisterEntity> findByBranchCode(String branchCode);
-    List<VvRegisterEntity> findAll();
 }
 

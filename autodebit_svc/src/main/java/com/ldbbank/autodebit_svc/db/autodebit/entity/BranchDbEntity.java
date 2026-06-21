@@ -38,4 +38,5 @@ public class BranchDbEntity {
     private String partnerId;
 
 
+
 }
