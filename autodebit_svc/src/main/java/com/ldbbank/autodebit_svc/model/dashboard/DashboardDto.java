@@ -28,6 +28,7 @@ public class DashboardDto {
     // ──────────────────────────────
     // Financial summary
     // ──────────────────────────────
+    private FinancialSummaryClosing financialSummaryClosing;
     private FinancialSummary financialSummary;
 
     // ──────────────────────────────
@@ -56,6 +57,16 @@ public class DashboardDto {
     // ──────────────────────────────
     // Nested classes
     // ──────────────────────────────
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class FinancialSummaryClosing {
+        private double totalVvRpTxnAmount;
+        private double totalVvTransactionAmount;
+        private double totalAutoDebitTxnAmount;
+        private double totalAutoDebitTxnCnyAmount;
+    }
 
     @Data
     @AllArgsConstructor

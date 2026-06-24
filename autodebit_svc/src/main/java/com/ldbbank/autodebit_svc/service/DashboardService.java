@@ -45,6 +45,9 @@ public class DashboardService {
         List<AutoDebitAccountTxnEntity> allAutoDebitTxns = autoDebitAccountTxnRepository.findAll();
 
         // ── Financial summary ──
+        dto.setFinancialSummaryClosing(buildFinancialSummaryClosing(allRpTxns, allVTxns, allAutoDebitTxns));
+
+        // ── Financial summary ──
         dto.setFinancialSummary(buildFinancialSummary(allRpTxns, allVTxns, allAutoDebitTxns));
 
         // ── Status breakdowns ──
@@ -52,28 +55,28 @@ public class DashboardService {
         dto.setRegistrationsByStatus(buildStatusCounts(
                 allRpTxns.stream()
                         .map(VvRpTxnEntity::getStatus)
-                        .filter("SUCCESS"::equalsIgnoreCase)
+                        .filter("SUCCEEDED"::equalsIgnoreCase)
                         .collect(Collectors.toList())
         ));
 
         dto.setRpTxnsByStatus(buildStatusCounts(
                 allRpTxns.stream()
                         .map(VvRpTxnEntity::getStatus)
-                        .filter("FAIL"::equalsIgnoreCase)
+                        .filter("INSUFFICIENT_FUND"::equalsIgnoreCase)
                         .collect(Collectors.toList())
         ));
 
         dto.setTransactionsByStatus(buildStatusCounts(
                 allRpTxns.stream()
                         .map(VvRpTxnEntity::getStatus)
-                        .filter("PENDING"::equalsIgnoreCase)
+                        .filter("Invalid response"::equalsIgnoreCase)
                         .collect(Collectors.toList())
         ));
 
         dto.setAutoDebitTxnsByStatus(buildStatusCounts(
                 allRpTxns.stream()
                         .map(VvRpTxnEntity::getStatus)
-                        .filter("HOLD"::equalsIgnoreCase)
+                        .filter("TIMEOUT"::equalsIgnoreCase)
                         .collect(Collectors.toList())
         ));
 
@@ -90,7 +93,42 @@ public class DashboardService {
         return dto;
     }
 
-    private DashboardDto.FinancialSummary buildFinancialSummary(
+    private DashboardDto.FinancialSummaryClosing buildFinancialSummaryClosing(
+            List<VvRpTxnEntity> rpTxns,
+            List<VvTransactionEntity> vTxns,
+            List<AutoDebitAccountTxnEntity> autoDebitTxns) {
+
+        // Sum LAK from rpTxns
+        double totalRpTxnLak = rpTxns.stream()
+                .filter(e -> "LAK".equalsIgnoreCase(e.getToAcctCcy()))
+                .mapToDouble(e -> e.getBalanceAmount() != null ? e.getBalanceAmount() : 0.0)
+                .sum();
+
+        // Sum USD from vTxns
+        double totalVTxnUsd = vTxns.stream()
+                .filter(e -> "USD".equalsIgnoreCase(e.getToAcctCcy()))
+                .mapToDouble(e -> e.getBalanceAmount() != null ? e.getBalanceAmount() : 0.0)
+                .sum();
+
+        // Sum THB from autoDebitTxns
+        double totalAutoDebitThbTxn = autoDebitTxns.stream()
+                .filter(e -> "THB".equalsIgnoreCase(e.getToAcctCcy()))
+                .mapToDouble(e -> e.getBalanceAmount() != null ? e.getBalanceAmount().doubleValue() : 0.0)
+                .sum();
+
+        // Sum CNY from autoDebitTxns
+        double totalAutoDebitCnyTxn = autoDebitTxns.stream()
+                .filter(e -> "CNY".equalsIgnoreCase(e.getToAcctCcy()))
+                .mapToDouble(e -> e.getBalanceAmount() != null ? e.getBalanceAmount().doubleValue() : 0.0)
+                .sum();
+
+        return new DashboardDto.FinancialSummaryClosing(
+                totalRpTxnLak,
+                totalVTxnUsd,
+                totalAutoDebitThbTxn,
+                totalAutoDebitCnyTxn
+        );
+    }private DashboardDto.FinancialSummary buildFinancialSummary(
             List<VvRpTxnEntity> rpTxns,
             List<VvTransactionEntity> vTxns,
             List<AutoDebitAccountTxnEntity> autoDebitTxns) {
@@ -201,8 +239,9 @@ public class DashboardService {
         return targetCurrencies.stream()
                 .map(ccy -> {
                     List<Double> amounts = grouped.getOrDefault(ccy, Collections.emptyList());
+
                     double total = amounts.stream().mapToDouble(Double::doubleValue).sum();
-                    return new DashboardDto.CurrencySummary(ccy, total, amounts.size());
+                    return new DashboardDto.CurrencySummary(ccy, total, 0);
                 })
                 .collect(Collectors.toList());
     }

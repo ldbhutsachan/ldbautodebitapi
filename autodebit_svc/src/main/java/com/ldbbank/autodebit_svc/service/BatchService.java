@@ -1,14 +1,8 @@
 package com.ldbbank.autodebit_svc.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ldbbank.autodebit_svc.db.autodebit.entity.AutoDebitAccountEntity;
-import com.ldbbank.autodebit_svc.db.autodebit.entity.AutoDebitAccountMapperEntity;
-import com.ldbbank.autodebit_svc.db.autodebit.entity.AutoDebitAccountTxnEntity;
-import com.ldbbank.autodebit_svc.db.autodebit.entity.AutoDebitCompanyEntity;
-import com.ldbbank.autodebit_svc.db.autodebit.repository.AutoDebitAccountMapperRepository;
-import com.ldbbank.autodebit_svc.db.autodebit.repository.AutoDebitAccountRepository;
-import com.ldbbank.autodebit_svc.db.autodebit.repository.AutoDebitAccountTxnRepository;
-import com.ldbbank.autodebit_svc.db.autodebit.repository.AutoDebitCompanyRepository;
+import com.ldbbank.autodebit_svc.db.autodebit.entity.*;
+import com.ldbbank.autodebit_svc.db.autodebit.repository.*;
 import com.ldbbank.autodebit_svc.db.t24.entity.AccountEntity;
 import com.ldbbank.autodebit_svc.db.t24.repository.AccountRepository;
 import com.ldbbank.autodebit_svc.model.corebank.*;
@@ -38,6 +32,7 @@ public class BatchService {
     private final AutoDebitAccountTxnRepository txnRepo;
     private final AccountRepository accountRepository;
     private final CorebankService corebankService;
+    private final AutoDebitCalAmountRepository autoDebitCalAmountRepository;
 
     public void runForDateRetry() {
             LocalDate date = LocalDate.now();
@@ -52,12 +47,14 @@ public class BatchService {
                 //ກວດສອບ Percent ກ່ອນຈະ ຕັດເງິນ
                 BigDecimal percent = comp.getPercent() == null ? BigDecimal.ZERO : comp.getPercent();
                 // get mappers for company
-                List<AutoDebitAccountMapperEntity> maps = mapperRepo.findByPartnerName(String.valueOf(comp.getCompanyCode()));
 
+                List<AutoDebitAccountMapperEntity> maps = mapperRepo.findByPartnerName(String.valueOf(comp.getCompanyCode()));
+                log.info("=======start running for company Code========:" + String.valueOf(comp.getCompanyCode()));
                 for (AutoDebitAccountMapperEntity m : maps) {
                     if (m.getStatus() == null || m.getStatus() != 1) continue; // only open
 
                     // check account
+                    log.info("=======start running for company getPartnerName========:" + m.getPartnerName());
                     var accOpt = accountRepo.findByPartNerNameAndAccountCcy(m.getPartnerName(), m.getFromAcctCcy());
                     if (accOpt.isEmpty()) continue;
 
@@ -121,7 +118,6 @@ public class BatchService {
         }
     }
 
-
     //ຍິງໄປຕັດເງິນ ຢູ່ T24
     public AutoDebitAccountTxnEntity mapperInsertDataToAccountTxn(
             BigDecimal percent,
@@ -131,56 +127,37 @@ public class BatchService {
 
         String reference = RefGenerator.generateReference();
 
-        // Load account info
+        // Load account info safely
         List<AccountEntity> accountInfo = accountRepository.findAccountDetails(m.getFromAcctNo());
         if (accountInfo == null || accountInfo.isEmpty()) {
-            throw new IllegalStateException("No account details found for " + m.getFromAcctNo());
+            throw new IllegalStateException("No account details found for account: " + m.getFromAcctNo());
         }
         AccountEntity mapAccount = accountInfo.get(0);
 
-        BigDecimal closing = mapAccount.getWorkingBalance();
-        String accountType = mapAccount.getCategoryName();
-        String currency = mapAccount.getCurrency(); // assume you have a field for currency
+        BigDecimal closing = Optional.ofNullable(mapAccount.getWorkingBalance())
+                .orElse(BigDecimal.ZERO);
+        String accountType = Optional.ofNullable(mapAccount.getCategoryName())
+                .orElse("UNKNOWN");
 
         // Default status
-        String status = "SUCCESS";
+        String status = "PENDING";
 
-        // Apply account type + currency rules
-        if ("CURRENT".equalsIgnoreCase(accountType)) {
-            if (("LAK".equalsIgnoreCase(currency) && closing.compareTo(BigDecimal.valueOf(1_000_000)) < 0)
-                    || ("USD".equalsIgnoreCase(currency) && closing.compareTo(BigDecimal.valueOf(100)) < 0)
-                    || ("THB".equalsIgnoreCase(currency) && closing.compareTo(BigDecimal.valueOf(500)) < 0)
-                    || ("CNY".equalsIgnoreCase(currency) && closing.compareTo(BigDecimal.valueOf(600)) < 0)) {
-                status = "CURRENT_INSUFFICIENT_FUND";
-            }
-        } else if ("SAVING".equalsIgnoreCase(accountType)) {
-            if (("LAK".equalsIgnoreCase(currency) && closing.compareTo(BigDecimal.valueOf(50_000)) < 0)
-                    || ("USD".equalsIgnoreCase(currency) && closing.compareTo(BigDecimal.valueOf(20)) < 0)
-                    || ("THB".equalsIgnoreCase(currency) && closing.compareTo(BigDecimal.valueOf(500)) < 0)
-                    || ("CNY".equalsIgnoreCase(currency) && closing.compareTo(BigDecimal.valueOf(20)) < 0)) {
-                status = "SAVING_INSUFFICIENT_FUND";
-            }
-        }
-
-        // Calculate debit amount (2 decimal places)
-        BigDecimal amount = closing.multiply(percent)
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-
+        // Build transaction entity
         AutoDebitAccountTxnEntity txn = new AutoDebitAccountTxnEntity();
         txn.setFromAcctNo(m.getFromAcctNo());
         txn.setFromAcctName(m.getFromAcctName());
         txn.setFromAcctCcy(m.getFromAcctCcy());
-        txn.setFromAcctAmount(amount);
+        txn.setFromAcctAmount(closing);
 
         txn.setToAcctNo(acc.getAccountNo());
         txn.setToAcctName(acc.getAccountName());
         txn.setToAcctCcy(acc.getAccountCcy());
-        txn.setToAcctAmount(amount);
+        txn.setToAcctAmount(BigDecimal.valueOf(0.0));
 
         txn.setTxnDate(LocalDate.now());
         txn.setPercent(comp.getPercent());
         txn.setBalanceAmount(closing);
-        txn.setTotalAmount(amount);
+        txn.setTotalAmount(BigDecimal.valueOf(0.0));
         txn.setTxnType("ACMB");
         txn.setRemark("auto debit edl");
         txn.setReference(reference);
@@ -194,21 +171,6 @@ public class BatchService {
         txnRepo.save(txn);
 
         return txn;
-    }
-
-    private BigDecimal fetchClosingBalance(String accountNo) {
-        log.info("Fetching closing balance for account {}", accountNo);
-        List<AccountEntity> accountInfo = accountRepository.findAccountDetails(accountNo);
-
-        if (accountInfo != null && !accountInfo.isEmpty()) {
-            // take the first record (or handle multiple if needed)
-            AccountEntity acc = accountInfo.get(0);
-            log.info("Fetching closing balance for account {} closing balance {}", accountNo,acc.getWorkingBalance());
-            return acc.getWorkingBalance() != null ? acc.getWorkingBalance() : BigDecimal.ZERO;
-        }else {
-            log.info("Fetching closing balance for account {} closing balance {}", accountNo,BigDecimal.ZERO);
-            return BigDecimal.ZERO;
-        }
     }
 
     public APIResponse<FundTransferRes<FundTransferDataResponse>> fundTransferResAPIStep01(AutoDebitCompanyEntity comp,
@@ -301,8 +263,19 @@ public class BatchService {
                 "Auto Debit =%s ",
                 comp.getCompanyName()
         );
+        //cal to check cal amount
 
-        BigDecimal totalPayAmount = txn.getTotalAmount();
+        Optional<AutoDebitCalAmountEntity> accountEntity = autoDebitCalAmountRepository.findByCcyAndType(txn.getFromAcctCcy(),txn.getFromAcctType());
+        AutoDebitCalAmountEntity mapEntity = accountEntity.get();
+
+
+
+        BigDecimal closing = txn.getFromAcctAmount();
+
+        BigDecimal amount = closing.multiply(txn.getPercent())
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+
+        BigDecimal totalPayAmount = amount;
         BigDecimal feeAmount = BigDecimal.valueOf(0.0);
 
         // Build and return the FundTransferReq object
