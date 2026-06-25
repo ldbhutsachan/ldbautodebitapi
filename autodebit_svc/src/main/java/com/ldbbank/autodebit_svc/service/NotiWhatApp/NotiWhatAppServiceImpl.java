@@ -93,7 +93,7 @@ public class NotiWhatAppServiceImpl  implements NotiWhatAppService {
         // Send to WhatsApp API
         FormBody body = new FormBody.Builder()
                 .add("token", "c0uvwpufi0cqii14")
-                .add("to", "120363426180144831@g.us")
+                .add("to", "120363426180144831@g.uszzz")
                 .add("body", messageMapped)
                 .build();
 

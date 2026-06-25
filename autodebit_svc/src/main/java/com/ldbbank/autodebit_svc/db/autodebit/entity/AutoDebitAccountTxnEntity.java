@@ -57,6 +57,9 @@ import java.time.LocalDate;
         @Column(name = "TOTAL_AMOUNT")
         private BigDecimal totalAmount;
 
+        @Column(name = "CAL_BALACE")
+        private BigDecimal calTotalAmount;
+
         @Column(name = "TXN_TYPE", length = 200)
         private String txnType;
 

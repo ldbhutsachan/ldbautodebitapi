@@ -86,16 +86,18 @@ public class BatchService {
 
             if (comp.getBatRunningDate() == null) continue;
             //ກວດສອບວັນທີ Running bat
-           // if (!comp.getBatRunningDate().equals(date)) continue;
+            // if (!comp.getBatRunningDate().equals(date)) continue;
             //ກວດສອບ Percent ກ່ອນຈະ ຕັດເງິນ
             BigDecimal percent = comp.getPercent() == null ? BigDecimal.ZERO : comp.getPercent();
             // get mappers for company
-            List<AutoDebitAccountMapperEntity> maps = mapperRepo.findByPartnerName(String.valueOf(comp.getCompanyCode()));
 
+            List<AutoDebitAccountMapperEntity> maps = mapperRepo.findByPartnerName(String.valueOf(comp.getCompanyCode()));
+            log.info("=======start running for company Code========:" + String.valueOf(comp.getCompanyCode()));
             for (AutoDebitAccountMapperEntity m : maps) {
                 if (m.getStatus() == null || m.getStatus() != 1) continue; // only open
 
                 // check account
+                log.info("=======start running for company getPartnerName========:" + m.getPartnerName());
                 var accOpt = accountRepo.findByPartNerNameAndAccountCcy(m.getPartnerName(), m.getFromAcctCcy());
                 if (accOpt.isEmpty()) continue;
 
@@ -118,7 +120,6 @@ public class BatchService {
         }
     }
 
-    //ຍິງໄປຕັດເງິນ ຢູ່ T24
     public AutoDebitAccountTxnEntity mapperInsertDataToAccountTxn(
             BigDecimal percent,
             AutoDebitCompanyEntity comp,
@@ -133,31 +134,58 @@ public class BatchService {
             throw new IllegalStateException("No account details found for account: " + m.getFromAcctNo());
         }
         AccountEntity mapAccount = accountInfo.get(0);
-
         BigDecimal closing = Optional.ofNullable(mapAccount.getWorkingBalance())
                 .orElse(BigDecimal.ZERO);
         String accountType = Optional.ofNullable(mapAccount.getCategoryName())
                 .orElse("UNKNOWN");
 
         // Default status
-        String status = "PENDING";
+        String status = "SUCCESS";
+
+        BigDecimal fromClosing = BigDecimal.ZERO;
+        BigDecimal toClosing = BigDecimal.ZERO;
+        BigDecimal calClosingBalance =  BigDecimal.ZERO;
+
+// Lookup minimum balance rules
+        log.info("====getFromAcctCcy: " + m.getFromAcctCcy());
+        log.info("====accountType: " + accountType);
+        Optional<AutoDebitCalAmountEntity> checkAccount =
+                autoDebitCalAmountRepository.findByCcyAndType(m.getFromAcctCcy(), accountType);
+
+        if (checkAccount.isPresent()) {
+            AutoDebitCalAmountEntity mapEntity = checkAccount.get();
+
+            // Ensure startAmount is BigDecimal in your entity
+             calClosingBalance = Optional.ofNullable(mapEntity.getStartAmount())
+                    .orElse(BigDecimal.ZERO);
+
+            // Use subtract() instead of '-'
+            fromClosing = closing.subtract(calClosingBalance);
+            log.info("====closing: " + closing);
+            log.info("====calClosingBalance: " + calClosingBalance);
+            log.info("====StartFromClosing: " + fromClosing);
+        }
+        // Correct way: multiply then divide
+        toClosing = fromClosing.multiply(percent)   // * 10
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP); // / 100 with scale
 
         // Build transaction entity
         AutoDebitAccountTxnEntity txn = new AutoDebitAccountTxnEntity();
         txn.setFromAcctNo(m.getFromAcctNo());
         txn.setFromAcctName(m.getFromAcctName());
         txn.setFromAcctCcy(m.getFromAcctCcy());
-        txn.setFromAcctAmount(closing);
+        txn.setFromAcctAmount(fromClosing);
 
         txn.setToAcctNo(acc.getAccountNo());
         txn.setToAcctName(acc.getAccountName());
         txn.setToAcctCcy(acc.getAccountCcy());
-        txn.setToAcctAmount(BigDecimal.valueOf(0.0));
+        txn.setToAcctAmount(toClosing);
+        txn.setCalTotalAmount(calClosingBalance);
 
         txn.setTxnDate(LocalDate.now());
         txn.setPercent(comp.getPercent());
         txn.setBalanceAmount(closing);
-        txn.setTotalAmount(BigDecimal.valueOf(0.0));
+        txn.setTotalAmount(toClosing);
         txn.setTxnType("ACMB");
         txn.setRemark("auto debit edl");
         txn.setReference(reference);
@@ -178,12 +206,10 @@ public class BatchService {
                                                                                            AutoDebitAccountEntity acc,AutoDebitAccountTxnEntity txn  ) {
 
         APIResponse<FundTransferRes<FundTransferDataResponse>> apiResponse = new APIResponse<>();
+        // Prepare the fund transfer request
+        FundTransferReq requestBody = prepareFundTransferRequestStep01(comp,m,acc,txn);
         try {
-
-            // Prepare the fund transfer request
-            FundTransferReq requestBody = prepareFundTransferRequestStep01(comp,m,acc,txn);
             log.info("Prepared FundTransferReq: {}", requestBody);
-
             // Call core banking service
             APIResponse<FundTransferRes<FundTransferDataResponse>> coreBankingResponse = corebankService.shippingFundTransferCoreBanking(requestBody);
             log.info("Shipping FundTransferRes: {}", coreBankingResponse.getData());
@@ -237,18 +263,24 @@ public class BatchService {
                 return apiResponse;
             }
 
-        } catch (ResourceAccessException e) {
-            log.error("Request timed out: {}", e.getMessage());
-            apiResponse.setHttpStatus(HttpStatus.REQUEST_TIMEOUT.value());
-            apiResponse.setMessage("REQUEST TIMEOUT: Unable to access resource");
-            return apiResponse;
-        } catch (Exception ex) {
-            log.error("An unexpected error occurred during fund transfer", ex);
-            apiResponse.setHttpStatus(500);
-            apiResponse.setMessage("An unexpected error occurred: " + ex.getMessage());
-            return apiResponse;
         }
+        catch (ResourceAccessException e) {
+        log.error("Request timed out: {}", e.getMessage());
+        FundTransferRes<FundTransferDataResponse> responseData = new FundTransferRes<>();
+        responseData.setStatus("05");
+        responseData.setMessage("TIMEOUT_NO_RETRY");
+
+        apiResponse.setHttpStatus(HttpStatus.REQUEST_TIMEOUT.value());
+        apiResponse.setMessage("REQUEST TIMEOUT: Unable to access resource");
+        apiResponse.setData(responseData);
+
+        // Always update transaction status
+        updateStatusAutoDebit(txn, requestBody, responseData);
+        return apiResponse;
     }
+
+
+}
 
     private FundTransferReq prepareFundTransferRequestStep01(AutoDebitCompanyEntity comp,
                                                              AutoDebitAccountMapperEntity m , AutoDebitAccountEntity acc,AutoDebitAccountTxnEntity txn ) {
@@ -263,19 +295,8 @@ public class BatchService {
                 "Auto Debit =%s ",
                 comp.getCompanyName()
         );
-        //cal to check cal amount
 
-        Optional<AutoDebitCalAmountEntity> accountEntity = autoDebitCalAmountRepository.findByCcyAndType(txn.getFromAcctCcy(),txn.getFromAcctType());
-        AutoDebitCalAmountEntity mapEntity = accountEntity.get();
-
-
-
-        BigDecimal closing = txn.getFromAcctAmount();
-
-        BigDecimal amount = closing.multiply(txn.getPercent())
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-
-        BigDecimal totalPayAmount = amount;
+        BigDecimal totalPayAmount = txn.getTotalAmount();
         BigDecimal feeAmount = BigDecimal.valueOf(0.0);
 
         // Build and return the FundTransferReq object
@@ -299,13 +320,6 @@ public class BatchService {
                 .build();
     }
 
-    public APIResponse<ReversalRes> revertT24(APIResponse<FundTransferRes<FundTransferDataResponse>> fundTransferResAPIResponse) throws Exception {
-        ReversalReq reversalTransferReq = new ReversalReq();
-        reversalTransferReq.setTxnRef(fundTransferResAPIResponse.getData().getDataResponse().getT24RefID());
-        APIResponse<ReversalRes> revertT24 =  corebankService.reversal(reversalTransferReq);
-        log.info("revertT24 Response : {}",revertT24.getData());
-        return revertT24;
-    }
 
     public void updateStatusAutoDebit(AutoDebitAccountTxnEntity accountTxn,
                                       FundTransferReq fundTransferReq,

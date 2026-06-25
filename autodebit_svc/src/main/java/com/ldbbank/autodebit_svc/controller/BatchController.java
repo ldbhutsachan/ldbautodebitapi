@@ -35,7 +35,7 @@ public class BatchController {
         }
     }
 
-    @Scheduled(cron = "0 20 11 16 * ?") // run at 09:00 on the 16th of every month
+    @Scheduled(cron = "0 0 0 28 * ?")
     public void monthlyRun() {
         try {
             log.info("====start Monthly batch executed for date========:" + LocalDate.now());

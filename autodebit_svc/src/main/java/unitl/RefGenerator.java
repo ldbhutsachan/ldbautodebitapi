@@ -11,7 +11,7 @@ public class RefGenerator {
         String datePart = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE); // 20260615
 
         // Add your fixed prefix
-        String prefix = "FT" + datePart;
+        String prefix = "EDL" + datePart;
 
 
         // Optionally add a random part for uniqueness
