@@ -147,8 +147,6 @@ public class BatchService {
         BigDecimal calClosingBalance =  BigDecimal.ZERO;
 
 // Lookup minimum balance rules
-        log.info("====getFromAcctCcy: " + m.getFromAcctCcy());
-        log.info("====accountType: " + accountType);
         Optional<AutoDebitCalAmountEntity> checkAccount =
                 autoDebitCalAmountRepository.findByCcyAndType(m.getFromAcctCcy(), accountType);
 
@@ -161,9 +159,6 @@ public class BatchService {
 
             // Use subtract() instead of '-'
             fromClosing = closing.subtract(calClosingBalance);
-            log.info("====closing: " + closing);
-            log.info("====calClosingBalance: " + calClosingBalance);
-            log.info("====StartFromClosing: " + fromClosing);
         }
         // Correct way: multiply then divide
         toClosing = fromClosing.multiply(percent)   // * 10

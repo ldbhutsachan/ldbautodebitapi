@@ -1,8 +1,11 @@
 package com.ldbbank.autodebit_svc.controller;
 
 import com.ldbbank.autodebit_svc.db.t24.entity.AccountEntity;
+import com.ldbbank.autodebit_svc.db.t24.entity.ExchangeRateEntity;
 import com.ldbbank.autodebit_svc.db.t24.repository.AccountRepository;
 import com.ldbbank.autodebit_svc.excaption.ApiResponse;
+import com.ldbbank.autodebit_svc.model.corebank.APIResponse;
+import com.ldbbank.autodebit_svc.service.CorebankService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +20,7 @@ import java.util.List;
 @RequestMapping("/t24")
 public class T24Controller {
     private final AccountRepository accountRepository;
+    private final CorebankService corebankService;
 
     @PostMapping("/t24Account")
     public ResponseEntity<?> t24Account(
@@ -32,5 +36,14 @@ public class T24Controller {
         } catch (Exception ex) {
             return ResponseEntity.status(500).body(new ApiResponse<>("05", "ບໍ່ສາມາດຄົ້ນຫາໄດ້ !!!  : " + ex.getMessage(), null));
         }
+    }
+
+    //
+    @PostMapping("/rate")
+    public ResponseEntity<?> exchangeRateFromCcy(){
+        String currencyCode = "THB";
+        APIResponse<ExchangeRateEntity> getExchangeRate =  corebankService.getExchangeRate(currencyCode);
+
+        return ResponseEntity.ok(new ApiResponse<>("00", "ສໍາເລັດ !!!", getExchangeRate));
     }
 }

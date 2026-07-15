@@ -1,6 +1,8 @@
 package com.ldbbank.autodebit_svc.service.corebank;
 
 import com.ldbbank.autodebit_svc._framwork.CustomRestTemplateBuilder;
+import com.ldbbank.autodebit_svc.db.t24.entity.ExchangeRateEntity;
+import com.ldbbank.autodebit_svc.db.t24.repository.ExchangeRateRepository;
 import com.ldbbank.autodebit_svc.model.corebank.*;
 import com.ldbbank.autodebit_svc.service.CorebankService;
 import lombok.extern.slf4j.Slf4j;
@@ -18,12 +20,16 @@ import org.springframework.web.client.RestTemplate;
 import unitl.JsonMapper;
 
 import java.net.URI;
+import java.util.List;
 
 @Service
 @Slf4j
 public class CorebankServiceImpl implements CorebankService {
     @Autowired
     private CustomRestTemplateBuilder customRestTemplateBuilder;
+
+    @Autowired
+    private ExchangeRateRepository exchangeRateRepository;
 
     @Value("${corebanking.connectionTimeout}")
     private int COREBANKING_TIMEOUT;
@@ -188,6 +194,32 @@ public class CorebankServiceImpl implements CorebankService {
             throw new Exception(ex); // Optionally rethrow or handle differently
         }
         log.info("REVERT Response {}", JsonMapper.toSimplifyString(response));
+        return response;
+    }
+
+    @Override
+    public APIResponse<ExchangeRateEntity> getExchangeRate(String currencyCode) {
+        APIResponse<ExchangeRateEntity> response = new APIResponse<ExchangeRateEntity>();
+        try {
+            log.info("Exchange Rate Request currencyCode={}", currencyCode);
+
+            List<ExchangeRateEntity> exchangeRates = exchangeRateRepository.findExchangeRate(currencyCode);
+
+            if (exchangeRates.isEmpty()) {
+                response.setHttpStatus(HttpStatus.NOT_FOUND.value());
+                response.setMessage("EXCHANGE RATE NOT FOUND");
+                return response;
+            }
+
+            response.setData(exchangeRates.get(0));
+            response.setHttpStatus(HttpStatus.OK.value());
+            response.setMessage(HttpStatus.OK.toString());
+        } catch (Exception ex) {
+            log.error("EXCHANGE RATE SERVICE EXCEPTION UNKNOWN: {}", ex.getMessage(), ex);
+            response.setHttpStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+            response.setMessage("EXCHANGE RATE SERVICE EXCEPTION UNKNOWN");
+        }
+       // log.info("Exchange Rate Response {}", JsonMapper.toSimplifyString(response));
         return response;
     }
 }

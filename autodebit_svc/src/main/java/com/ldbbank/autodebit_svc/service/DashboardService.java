@@ -2,18 +2,29 @@ package com.ldbbank.autodebit_svc.service;
 
 import com.ldbbank.autodebit_svc.db.autodebit.entity.*;
 import com.ldbbank.autodebit_svc.db.autodebit.repository.*;
+import com.ldbbank.autodebit_svc.db.t24.entity.AccountRealtimeEntity;
+import com.ldbbank.autodebit_svc.db.t24.entity.ExchangeRateEntity;
+import com.ldbbank.autodebit_svc.db.t24.repository.AccountRealtimeRepository;
+import com.ldbbank.autodebit_svc.model.corebank.APIResponse;
+import com.ldbbank.autodebit_svc.model.dashboard.AccountRealtimeDto;
+import com.ldbbank.autodebit_svc.model.dashboard.Dashboard2Dto;
 import com.ldbbank.autodebit_svc.model.dashboard.DashboardDto;
 import com.ldbbank.autodebit_svc.model.dashboard.MonthlyReportChartDto;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
+@Slf4j
 public class DashboardService {
+
+    private final CorebankService corebankService;
 
     private final VvRegisterRepository vvRegisterRepository;
     private final VvRpTxnRepository vvRpTxnRepository;
@@ -24,25 +35,35 @@ public class DashboardService {
     private final AutoDebitAccountMapperRepository autoDebitAccountMapperRepository;
     private final AutoDebitAccountTxnRepository autoDebitAccountTxnRepository;
     private final UserDbRepository userDbRepository;
+    private final AccountTypeRepository accountTypeRepository;
+    private final AccountRealtimeRepository accountRealtimeRepository;
 
-    public DashboardDto getDashboard() {
+
+    /**
+     * @param month 1-12 to filter to a specific month, or {@code null} for all months
+     * @param year  e.g. 2026 to filter to a specific year, or {@code null} for all years
+     */
+    public DashboardDto getDashboard(Integer month, Integer year) {
         DashboardDto dto = new DashboardDto();
 
-        // ── Overview counts (lightweight COUNT queries) ──
+        // ── Fetch full datasets once and filter by month/year (null = no filter on that dimension) ──
+        List<VvRpTxnEntity> allRpTxns = filterByMonthYear(
+                vvRpTxnRepository.findAll(), VvRpTxnEntity::getTxnDate, month, year);
+        List<VvTransactionEntity> allVTxns = filterByMonthYear(
+                vvTransactionRepository.findAll(), VvTransactionEntity::getTxnDate, month, year);
+        List<AutoDebitAccountTxnEntity> allAutoDebitTxns = filterByMonthYear(
+                autoDebitAccountTxnRepository.findAll(), AutoDebitAccountTxnEntity::getTxnDate, month, year);
+
+        // ── Overview counts (transaction-based counts reflect the month/year filter; master-data counts don't) ──
         dto.setTotalRegistrations(vvRegisterRepository.count());
-        dto.setTotalTransactions(vvTransactionRepository.count());
-        dto.setTotalReportTransactions(vvRpTxnRepository.count());
+        dto.setTotalTransactions((long) allVTxns.size());
+        dto.setTotalReportTransactions((long) allRpTxns.size());
         dto.setTotalAccounts(autoDebitAccountRepository.count());
         dto.setTotalCompanies(autoDebitCompanyRepository.count());
         dto.setTotalBranches(branchDbRepository.count());
         dto.setTotalAccountMappers(autoDebitAccountMapperRepository.count());
-        dto.setTotalAutoDebitTxns(autoDebitAccountTxnRepository.count());
+        dto.setTotalAutoDebitTxns((long) allAutoDebitTxns.size());
         dto.setTotalUsers(userDbRepository.count());
-
-        // ── Fetch full datasets once and reuse ──
-        List<VvRpTxnEntity> allRpTxns = vvRpTxnRepository.findAll();
-        List<VvTransactionEntity> allVTxns = vvTransactionRepository.findAll();
-        List<AutoDebitAccountTxnEntity> allAutoDebitTxns = autoDebitAccountTxnRepository.findAll();
 
         // ── Financial summary ──
         dto.setFinancialSummaryClosing(buildFinancialSummaryClosing(allRpTxns, allVTxns, allAutoDebitTxns));
@@ -166,6 +187,22 @@ public class DashboardService {
     }
 
 
+    private <T> List<T> filterByMonthYear(List<T> items, java.util.function.Function<T, LocalDate> dateExtractor,
+                                           Integer month, Integer year) {
+        if (month == null && year == null) {
+            return items;
+        }
+        return items.stream()
+                .filter(item -> {
+                    LocalDate date = dateExtractor.apply(item);
+                    if (date == null) return false;
+                    if (year != null && date.getYear() != year) return false;
+                    if (month != null && date.getMonthValue() != month) return false;
+                    return true;
+                })
+                .collect(Collectors.toList());
+    }
+
     private Map<String, Long> buildStatusCounts(List<String> statuses) {
         return statuses.stream()
                 .filter(Objects::nonNull)
@@ -246,84 +283,88 @@ public class DashboardService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Monthly report shown in LAK (ກີບ) only.
+     * LAK transactions are summed as-is; foreign-currency transactions (USD/THB/CNY)
+     * are converted to their LAK equivalent using the T24 exchange buy rate before
+     * being added into the same monthly total.
+     */
     private List<DashboardDto.MonthlyReport> buildMonthlyReports(
             List<VvRpTxnEntity> rpTxns,
             List<VvTransactionEntity> vTxns,
             List<AutoDebitAccountTxnEntity> autoDebitTxns) {
 
-        // Target currencies in desired display order: LAK (ກີບ), THB (ບາດ), USD (ໂດລາ), CNY (ຢວນ)
-        // Each currency reads from its designated source to avoid triple-counting
-        List<String> targetCurrencies = List.of("LAK", "THB", "USD", "CNY");
+        // Fetch current exchange rates once per foreign currency (avoid one DB call per transaction)
+        Map<String, BigDecimal> buyRates = new HashMap<>();
+        for (String ccy : List.of("USD", "THB", "CNY")) {
+            APIResponse<ExchangeRateEntity> rate = corebankService.getExchangeRate(ccy);
+            if (rate.getData() != null && rate.getData().getBuyRate() != null) {
+                buyRates.put(ccy, rate.getData().getBuyRate());
+            } else {
+                log.warn("No exchange rate found for {}, excluded from LAK monthly totals", ccy);
+            }
+        }
 
-        // Group amounts by year-month + currency key (e.g. "2026-06|LAK")
-        Map<String, List<Double>> grouped = new LinkedHashMap<>();
+        // Group LAK-equivalent totals by year-month
+        Map<String, Double> totalsByMonth = new LinkedHashMap<>();
+        Map<String, Long> countsByMonth = new LinkedHashMap<>();
 
-        // LAK from rpTxns
+        // LAK from rpTxns — no conversion needed
         rpTxns.stream()
                 .filter(t -> "LAK".equalsIgnoreCase(t.getToAcctCcy())
                         && t.getTxnDate() != null && t.getToAcctAmount() != null)
-                .forEach(t -> {
-                    String key = t.getTxnDate().getYear() + "-"
-                            + String.format("%02d", t.getTxnDate().getMonthValue()) + "|LAK";
-                    grouped.computeIfAbsent(key, k -> new ArrayList<>()).add(t.getToAcctAmount());
-                });
+                .forEach(t -> addToMonthlyTotal(totalsByMonth, countsByMonth, t.getTxnDate(), t.getToAcctAmount()));
 
-        // USD from vTxns
+        // USD from vTxns — converted to LAK
         vTxns.stream()
                 .filter(t -> "USD".equalsIgnoreCase(t.getToAcctCcy())
                         && t.getTxnDate() != null && t.getToAcctAmount() != null)
-                .forEach(t -> {
-                    String key = t.getTxnDate().getYear() + "-"
-                            + String.format("%02d", t.getTxnDate().getMonthValue()) + "|USD";
-                    grouped.computeIfAbsent(key, k -> new ArrayList<>()).add(t.getToAcctAmount());
-                });
+                .forEach(t -> addToMonthlyTotal(totalsByMonth, countsByMonth, t.getTxnDate(),
+                        convertToLak(t.getToAcctAmount(), "USD", buyRates)));
 
-        // THB from autoDebitTxns
+        // THB from autoDebitTxns — converted to LAK
         autoDebitTxns.stream()
                 .filter(t -> "THB".equalsIgnoreCase(t.getToAcctCcy())
                         && t.getTxnDate() != null && t.getToAcctAmount() != null)
-                .forEach(t -> {
-                    String key = t.getTxnDate().getYear() + "-"
-                            + String.format("%02d", t.getTxnDate().getMonthValue()) + "|THB";
-                    grouped.computeIfAbsent(key, k -> new ArrayList<>()).add(t.getToAcctAmount().doubleValue());
-                });
+                .forEach(t -> addToMonthlyTotal(totalsByMonth, countsByMonth, t.getTxnDate(),
+                        convertToLak(t.getToAcctAmount().doubleValue(), "THB", buyRates)));
 
-        // CNY from autoDebitTxns
+        // CNY from autoDebitTxns — converted to LAK
         autoDebitTxns.stream()
                 .filter(t -> "CNY".equalsIgnoreCase(t.getToAcctCcy())
                         && t.getTxnDate() != null && t.getToAcctAmount() != null)
-                .forEach(t -> {
-                    String key = t.getTxnDate().getYear() + "-"
-                            + String.format("%02d", t.getTxnDate().getMonthValue()) + "|CNY";
-                    grouped.computeIfAbsent(key, k -> new ArrayList<>()).add(t.getToAcctAmount().doubleValue());
-                });
+                .forEach(t -> addToMonthlyTotal(totalsByMonth, countsByMonth, t.getTxnDate(),
+                        convertToLak(t.getToAcctAmount().doubleValue(), "CNY", buyRates)));
 
         // Build and sort the result list (most recent month first)
-        return grouped.entrySet().stream()
+        return totalsByMonth.entrySet().stream()
                 .map(entry -> {
-                    String[] keyParts = entry.getKey().split("\\|");
-                    String[] dateParts = keyParts[0].split("-");
+                    String[] dateParts = entry.getKey().split("-");
                     int year = Integer.parseInt(dateParts[0]);
                     int month = Integer.parseInt(dateParts[1]);
-                    String currency = keyParts[1];
-                    List<Double> amounts = entry.getValue();
-                    double total = amounts.stream().mapToDouble(Double::doubleValue).sum();
-                    return new DashboardDto.MonthlyReport(year, month, amounts.size(), total, currency);
+                    long count = countsByMonth.getOrDefault(entry.getKey(), 0L);
+                    return new DashboardDto.MonthlyReport(year, month, count, entry.getValue(), "LAK");
                 })
                 .sorted((a, b) -> {
                     if (a.getYear() != b.getYear()) return Integer.compare(b.getYear(), a.getYear());
-                    if (a.getMonth() != b.getMonth()) return Integer.compare(b.getMonth(), a.getMonth());
-                    return Integer.compare(
-                            indexOfCurrency(a.getCurrency(), targetCurrencies),
-                            indexOfCurrency(b.getCurrency(), targetCurrencies)
-                    );
+                    return Integer.compare(b.getMonth(), a.getMonth());
                 })
                 .collect(Collectors.toList());
     }
 
-    private int indexOfCurrency(String currency, List<String> targetCurrencies) {
-        int i = targetCurrencies.indexOf(currency);
-        return i >= 0 ? i : Integer.MAX_VALUE;
+    private void addToMonthlyTotal(Map<String, Double> totalsByMonth, Map<String, Long> countsByMonth,
+                                    LocalDate txnDate, double lakAmount) {
+        String key = txnDate.getYear() + "-" + String.format("%02d", txnDate.getMonthValue());
+        totalsByMonth.merge(key, lakAmount, Double::sum);
+        countsByMonth.merge(key, 1L, Long::sum);
+    }
+
+    private double convertToLak(double amount, String currency, Map<String, BigDecimal> buyRates) {
+        BigDecimal rate = buyRates.get(currency);
+        if (rate == null) {
+            return 0.0;
+        }
+        return amount * rate.doubleValue();
     }
 
     /**
@@ -422,5 +463,165 @@ public class DashboardService {
         }
 
         return new MonthlyReportChartDto(labels, seriesList);
+    }
+
+    /**
+     * Dashboard2 — realtime account monitor.
+     * <p>
+     * Pulls live balances straight from T24 (FBNK_ACCOUNT via XMLTABLE) for accounts
+     * registered for auto-debit, then maps each account's raw T24 CATEGORY code to its
+     * description in ACCOUNT_TYPE. That mapping is done here in application code rather
+     * than in SQL because T24 and the app database are two separate physical Oracle
+     * databases (see {@code SecondDataSourceConfig} / {@code PrimaryDataSourceConfig}).
+     *
+     * @param branchCode optional filter on T24 CO_CODE, or {@code null} for all branches
+     * @param accountNo  optional filter on a single account number, or {@code null} for all accounts
+     */
+    public Dashboard2Dto getDashboard2(String branchCode, String accountNo) {
+        List<String> accountNos = autoDebitAccountMapperRepository.findByStatus(1).stream()
+                .map(AutoDebitAccountMapperEntity::getFromAcctNo)
+                .filter(Objects::nonNull)
+                .filter(no -> accountNo == null || accountNo.isBlank() || no.equals(accountNo))
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (accountNos.isEmpty()) {
+            return new Dashboard2Dto(Collections.emptyList(), Collections.emptyList(),
+                    Collections.emptyList(), Collections.emptyList(), BigDecimal.ZERO);
+        }
+
+        List<AccountRealtimeEntity> realtimeAccounts = accountRealtimeRepository.findAccountsRealtime(accountNos).stream()
+                .filter(a -> branchCode == null || branchCode.isBlank() || branchCode.equalsIgnoreCase(a.getBranchCode()))
+                .collect(Collectors.toList());
+
+        // ── Map CATEGORY -> TYPE_NAME (application-side join across the two databases) ──
+        List<String> categoryCodes = realtimeAccounts.stream()
+                .map(AccountRealtimeEntity::getCategory)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<String, String> categoryNameByCode = categoryCodes.isEmpty()
+                ? Collections.emptyMap()
+                : accountTypeRepository.findByCodeIn(categoryCodes).stream()
+                        .collect(Collectors.toMap(AccountTypeDbEntity::getCode, AccountTypeDbEntity::getTypeName, (a, b) -> a));
+
+        List<AccountRealtimeDto> accountDtos = realtimeAccounts.stream()
+                .map(a -> new AccountRealtimeDto(
+                        a.getAccountNo(),
+                        a.getCif(),
+                        a.getCategory(),
+                        categoryNameByCode.get(a.getCategory()),
+                        a.getAccountName(),
+                        a.getAccountOfficer(),
+                        a.getBranchCode(),
+                        a.getCcy(),
+                        a.getBalance(),
+                        a.getInactiveFlag(),
+                        a.getOpeningDate()
+                ))
+                .collect(Collectors.toList());
+
+        // ── Exchange rates for LAK-equivalent totals ──
+        Map<String, BigDecimal> buyRates = new HashMap<>();
+        for (String ccy : List.of("USD", "THB", "CNY")) {
+            APIResponse<ExchangeRateEntity> rate = corebankService.getExchangeRate(ccy);
+            if (rate.getData() != null && rate.getData().getBuyRate() != null) {
+                buyRates.put(ccy, rate.getData().getBuyRate());
+            } else {
+                log.warn("No exchange rate found for {}, excluded from LAK-equivalent totals", ccy);
+            }
+        }
+
+        // ── ຍອດລວມກິບ/ໂດລາ/ບາດ/ຢວນ — raw total per currency ──
+        List<Dashboard2Dto.CurrencyTotal> currencyTotals = realtimeAccounts.stream()
+                .filter(a -> a.getCcy() != null)
+                .collect(Collectors.groupingBy(AccountRealtimeEntity::getCcy, LinkedHashMap::new, Collectors.toList()))
+                .entrySet().stream()
+                .map(e -> new Dashboard2Dto.CurrencyTotal(e.getKey(), sumBalances(e.getValue()), e.getValue().size()))
+                .collect(Collectors.toList());
+
+        // ── ລາຍລະອຽດສາຂາ ເເລະ ຍອດຍົກມາທຽບໃສ່ກີບ — per branch, by currency + LAK equivalent ──
+        Map<String, List<AccountRealtimeEntity>> accountsByBranch = realtimeAccounts.stream()
+                .filter(a -> a.getBranchCode() != null)
+                .collect(Collectors.groupingBy(AccountRealtimeEntity::getBranchCode, LinkedHashMap::new, Collectors.toList()));
+
+        List<Long> branchNos = accountsByBranch.keySet().stream()
+                .map(this::parseBranchNo)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<Long, String> branchNameByNo = branchNos.isEmpty()
+                ? Collections.emptyMap()
+                : branchDbRepository.findByBranchNoIn(branchNos).stream()
+                        .collect(Collectors.toMap(BranchDbEntity::getBranchNo, BranchDbEntity::getBranchName, (a, b) -> a));
+
+
+        List<Dashboard2Dto.BranchSummary> branchSummaries = accountsByBranch.entrySet().stream()
+                .map(e -> new Dashboard2Dto.BranchSummary(
+                        e.getKey(),
+                        branchNameByNo.get(parseBranchNo(e.getKey())),
+                        e.getValue().size(),
+                        balanceByCcy(e.getValue()),
+                        totalLakEquivalent(e.getValue(), buyRates)
+                ))
+                .collect(Collectors.toList());
+
+        // ── Per account-type (CATEGORY) totals in LAK equivalent ──
+        List<Dashboard2Dto.CategorySummary> categorySummaries = realtimeAccounts.stream()
+                .filter(a -> a.getCategory() != null)
+                .collect(Collectors.groupingBy(AccountRealtimeEntity::getCategory, LinkedHashMap::new, Collectors.toList()))
+                .entrySet().stream()
+                .map(e -> new Dashboard2Dto.CategorySummary(
+                        e.getKey(),
+                        categoryNameByCode.get(e.getKey()),
+                        e.getValue().size(),
+                        totalLakEquivalent(e.getValue(), buyRates)
+                ))
+                .collect(Collectors.toList());
+
+        BigDecimal grandTotalLak = totalLakEquivalent(realtimeAccounts, buyRates);
+
+        return new Dashboard2Dto(accountDtos, currencyTotals, branchSummaries, categorySummaries, grandTotalLak);
+    }
+
+    private Long parseBranchNo(String branchCode) {
+        try {
+            return Long.valueOf(branchCode.trim());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private BigDecimal sumBalances(List<AccountRealtimeEntity> accounts) {
+        return accounts.stream().map(a -> nvl(a.getBalance())).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private Map<String, BigDecimal> balanceByCcy(List<AccountRealtimeEntity> accounts) {
+        return accounts.stream()
+                .filter(a -> a.getCcy() != null)
+                .collect(Collectors.groupingBy(
+                        AccountRealtimeEntity::getCcy,
+                        LinkedHashMap::new,
+                        Collectors.reducing(BigDecimal.ZERO, a -> nvl(a.getBalance()), BigDecimal::add)
+                ));
+    }
+
+    private BigDecimal totalLakEquivalent(List<AccountRealtimeEntity> accounts, Map<String, BigDecimal> buyRates) {
+        return accounts.stream()
+                .map(a -> toLak(a.getCcy(), nvl(a.getBalance()), buyRates))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal toLak(String ccy, BigDecimal amount, Map<String, BigDecimal> buyRates) {
+        if (ccy == null) return BigDecimal.ZERO;
+        if ("LAK".equalsIgnoreCase(ccy)) return amount;
+        BigDecimal rate = buyRates.get(ccy.toUpperCase());
+        return rate != null ? amount.multiply(rate) : BigDecimal.ZERO;
+    }
+
+    private BigDecimal nvl(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
     }
 }

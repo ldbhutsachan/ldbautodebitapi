@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//d/project-ldb-auto-debit-2026/**)",
+      "Bash(mkdir -p /tmp_extract)",
+      "Bash(python -c \"print\\('python ok'\\)\")"
+    ]
+  }
+}
