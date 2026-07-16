@@ -1,3 +1,4 @@
+D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\db\autodebit\entity\AccountLimitTxnDbEntity.java
 D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\service\CorebankService.java
 D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\db\autodebit\entity\VvUserEntity.java
 D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\db\autodebit\entity\AutoDebitCalAmountEntity.java
@@ -23,6 +24,7 @@ D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\l
 D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\model\AutoDebitAccountMapperReq.java
 D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\service\AutoDebitCompanyService.java
 D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\controller\BranchController.java
+D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\db\autodebit\entity\AccountLimitDbEntity.java
 D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\excaption\ApiResponse.java
 D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\model\AutoDebitAccountDto.java
 D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\model\corebank\FundTransferDataResponse.java
@@ -56,6 +58,7 @@ D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\l
 D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\_framwork\JwtAuthFilter.java
 D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\db\t24\entity\AccountEntity.java
 D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\db\t24\repository\ExchangeRateRepository.java
+D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\db\autodebit\repository\AccountLimitTxnRepository.java
 D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\service\AuthService.java
 D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\controller\AutoDebitAccountMapperController.java
 D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\db\autodebit\entity\RoleEntity.java
@@ -67,6 +70,7 @@ D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\l
 D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\mapper\VvTransactionMapper.java
 D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\service\rpAutoDebitService\VvRegisterService.java
 D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\_framwork\PrimaryDataSourceConfig.java
+D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\db\autodebit\repository\AccountLimitDbRepository.java
 D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\service\NotiWhatAppService.java
 D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\db\autodebit\entity\AutoDebitAccountMapperEntity.java
 D:\project-ldb-auto-debit-2026\ldbautodebitapi\autodebit_svc\src\main\java\com\ldbbank\autodebit_svc\model\corebank\APIResponse.java

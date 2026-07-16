@@ -17,6 +17,7 @@ public class AccountRealtimeDto {
     private String accountName;
     private String accountOfficer;
     private String branchCode;
+    private String branchName;
     private String ccy;
     private BigDecimal balance;
     private String inactiveFlag;

@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -23,6 +24,8 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class DashboardService {
+    private final AccountLimitDbRepository  accountLimitDbRepository;
+    private final AccountLimitTxnRepository  accountLimitTxnRepository;
 
     private final CorebankService corebankService;
 
@@ -295,15 +298,7 @@ public class DashboardService {
             List<AutoDebitAccountTxnEntity> autoDebitTxns) {
 
         // Fetch current exchange rates once per foreign currency (avoid one DB call per transaction)
-        Map<String, BigDecimal> buyRates = new HashMap<>();
-        for (String ccy : List.of("USD", "THB", "CNY")) {
-            APIResponse<ExchangeRateEntity> rate = corebankService.getExchangeRate(ccy);
-            if (rate.getData() != null && rate.getData().getBuyRate() != null) {
-                buyRates.put(ccy, rate.getData().getBuyRate());
-            } else {
-                log.warn("No exchange rate found for {}, excluded from LAK monthly totals", ccy);
-            }
-        }
+        Map<String, BigDecimal> buyRates = fetchBuyRates();
 
         // Group LAK-equivalent totals by year-month
         Map<String, Double> totalsByMonth = new LinkedHashMap<>();
@@ -478,10 +473,13 @@ public class DashboardService {
      * @param accountNo  optional filter on a single account number, or {@code null} for all accounts
      */
     public Dashboard2Dto getDashboard2(String branchCode, String accountNo) {
-        List<String> accountNos = autoDebitAccountMapperRepository.findByStatus(1).stream()
+        List<AutoDebitAccountMapperEntity> mappers = autoDebitAccountMapperRepository.findByStatus(1).stream()
+                .filter(m -> m.getFromAcctNo() != null)
+                .filter(m -> accountNo == null || accountNo.isBlank() || m.getFromAcctNo().equals(accountNo))
+                .collect(Collectors.toList());
+
+        List<String> accountNos = mappers.stream()
                 .map(AutoDebitAccountMapperEntity::getFromAcctNo)
-                .filter(Objects::nonNull)
-                .filter(no -> accountNo == null || accountNo.isBlank() || no.equals(accountNo))
                 .distinct()
                 .collect(Collectors.toList());
 
@@ -489,87 +487,189 @@ public class DashboardService {
             return new Dashboard2Dto(Collections.emptyList(), Collections.emptyList(),
                     Collections.emptyList(), Collections.emptyList(), BigDecimal.ZERO);
         }
+        // ── check limit: reject once this company has hit its configured query quota ──
+        checkAccountLimit(mappers.get(0).getPartnerName());
 
-        List<AccountRealtimeEntity> realtimeAccounts = accountRealtimeRepository.findAccountsRealtime(accountNos).stream()
+        // ── branchCode per account comes from AUTO_DEBIT_ACCOUNT_MAPPER, not T24 CO_CODE ──
+        Map<String, String> branchCodeByAccountNo = mappers.stream()
+                .filter(m -> m.getBranchCode() != null)
+                .collect(Collectors.toMap(AutoDebitAccountMapperEntity::getFromAcctNo,
+                        AutoDebitAccountMapperEntity::getBranchCode, (a, b) -> a));
+        Map<Long, String> branchNameByNo = fetchBranchNames(branchCodeByAccountNo.values());
+
+        List<AccountRealtimeEntity> realtimeAccounts = fetchRealtimeAccounts(accountNos, branchCode);
+
+        Map<String, String> categoryNameByCode = fetchCategoryNames(realtimeAccounts);
+        Map<String, BigDecimal> buyRates = fetchBuyRates();
+        //accountDtos
+        List<AccountRealtimeDto> accountDtos = buildAccountDtos(realtimeAccounts, categoryNameByCode, branchCodeByAccountNo, branchNameByNo);
+        //currencyTotals
+        List<Dashboard2Dto.CurrencyTotal> currencyTotals = buildCurrencyTotals(realtimeAccounts);
+        //branchSummaries
+        List<Dashboard2Dto.BranchSummary> branchSummaries = buildDashboard2BranchSummaries(realtimeAccounts, branchCodeByAccountNo, branchNameByNo, buyRates);
+        //categorySummaries
+        List<Dashboard2Dto.CategorySummary> categorySummaries = buildCategorySummaries(realtimeAccounts, categoryNameByCode, buyRates);
+        BigDecimal grandTotalLak = totalLakEquivalent(realtimeAccounts, buyRates);
+
+        saveAccountLimit(mappers.get(0));
+
+        return new Dashboard2Dto(accountDtos, currencyTotals, branchSummaries, categorySummaries, grandTotalLak);
+    }
+
+    // ── reject the query once this company has reached its configured ACCOUNT_LIMIT.AMT quota
+    //    of dashboard2 calls (tracked as row-count in ACCOUNT_LIMT_TXN) ──
+    private void checkAccountLimit(String companyId) {
+        accountLimitDbRepository.findByCompanyId(companyId).ifPresent(limitConfig -> {
+            long limit = parseLimitAmt(limitConfig.getAmt());
+            if (limit < 0) {
+                return;
+            }
+            long usedCount = accountLimitTxnRepository.countByCompanyId(companyId);
+            if (usedCount >= limit) {
+                throw new IllegalStateException("ທ່ານຕິດລີມິດໃນການເບີ່ງຂໍ້ມູນບັນຊີຂອງທ່ານ !!! ກະລຸນາເເຈ້ງ ຜູ້ຄຸ້ມຄອງລະບົບເພຶ່ອເພີ້ມຈໍານວນຄັ້ງໃນການເບີ່ງ !!! " + companyId);
+            }
+        });
+    }
+
+    private long parseLimitAmt(String amt) {
+        try {
+            return Long.parseLong(amt.trim());
+        } catch (NumberFormatException | NullPointerException ex) {
+            log.warn("Invalid ACCOUNT_LIMIT.AMT value '{}', limit check skipped", amt);
+            return -1;
+        }
+    }
+
+    private void saveAccountLimit(AutoDebitAccountMapperEntity mapper) {
+        String companyId = mapper.getPartnerName();
+        String companyName = autoDebitCompanyRepository.findById(Long.valueOf(companyId))
+                .map(AutoDebitCompanyEntity::getCompanyName)
+                .orElse(null);
+
+        AccountLimitTxnDbEntity entity = new AccountLimitTxnDbEntity();
+        entity.setCompanyId(companyId);
+        entity.setCompanyName(companyName);
+        entity.setTimeNow(LocalDateTime.now());
+        entity.setTimeCheck(LocalDate.now());
+        accountLimitTxnRepository.save(entity);
+    }
+
+
+    // ── ຄົ້ນຫາເທື່ອລະບັນຊີເເລ້ວເອົາມາລວມກັນ — query T24 one account at a time, then merge ──
+    private List<AccountRealtimeEntity> fetchRealtimeAccounts(List<String> accountNos, String branchCode) {
+        List<AccountRealtimeEntity> realtimeAccounts = new ArrayList<>();
+        for (String accNo : accountNos) {
+            realtimeAccounts.addAll(accountRealtimeRepository.findAccountsRealtimeByAccNo(accNo));
+        }
+        return realtimeAccounts.stream()
                 .filter(a -> branchCode == null || branchCode.isBlank() || branchCode.equalsIgnoreCase(a.getBranchCode()))
                 .collect(Collectors.toList());
+    }
 
-        // ── Map CATEGORY -> TYPE_NAME (application-side join across the two databases) ──
+    // ── Map CATEGORY -> TYPE_NAME (application-side join across the two databases) ──
+    private Map<String, String> fetchCategoryNames(List<AccountRealtimeEntity> realtimeAccounts) {
         List<String> categoryCodes = realtimeAccounts.stream()
                 .map(AccountRealtimeEntity::getCategory)
                 .filter(Objects::nonNull)
                 .distinct()
                 .collect(Collectors.toList());
 
-        Map<String, String> categoryNameByCode = categoryCodes.isEmpty()
+        return categoryCodes.isEmpty()
                 ? Collections.emptyMap()
                 : accountTypeRepository.findByCodeIn(categoryCodes).stream()
                         .collect(Collectors.toMap(AccountTypeDbEntity::getCode, AccountTypeDbEntity::getTypeName, (a, b) -> a));
+    }
 
-        List<AccountRealtimeDto> accountDtos = realtimeAccounts.stream()
-                .map(a -> new AccountRealtimeDto(
-                        a.getAccountNo(),
-                        a.getCif(),
-                        a.getCategory(),
-                        categoryNameByCode.get(a.getCategory()),
-                        a.getAccountName(),
-                        a.getAccountOfficer(),
-                        a.getBranchCode(),
-                        a.getCcy(),
-                        a.getBalance(),
-                        a.getInactiveFlag(),
-                        a.getOpeningDate()
-                ))
+    private List<AccountRealtimeDto> buildAccountDtos(List<AccountRealtimeEntity> realtimeAccounts,
+                                                        Map<String, String> categoryNameByCode,
+                                                        Map<String, String> branchCodeByAccountNo,
+                                                        Map<Long, String> branchNameByNo) {
+        return realtimeAccounts.stream()
+                .map(a -> {
+                    String branchCode = branchCodeByAccountNo.get(a.getAccountNo());
+                    return new AccountRealtimeDto(
+                            a.getAccountNo(),
+                            a.getCif(),
+                            a.getCategory(),
+                            categoryNameByCode.get(a.getCategory()),
+                            a.getAccountName(),
+                            a.getAccountOfficer(),
+                            branchCode,
+                            resolveBranchName(branchCode, branchNameByNo),
+                            a.getCcy(),
+                            a.getBalance(),
+                            a.getInactiveFlag(),
+                            a.getOpeningDate()
+                    );
+                })
                 .collect(Collectors.toList());
+    }
 
-        // ── Exchange rates for LAK-equivalent totals ──
-        Map<String, BigDecimal> buyRates = new HashMap<>();
-        for (String ccy : List.of("USD", "THB", "CNY")) {
-            APIResponse<ExchangeRateEntity> rate = corebankService.getExchangeRate(ccy);
-            if (rate.getData() != null && rate.getData().getBuyRate() != null) {
-                buyRates.put(ccy, rate.getData().getBuyRate());
-            } else {
-                log.warn("No exchange rate found for {}, excluded from LAK-equivalent totals", ccy);
-            }
-        }
-
-        // ── ຍອດລວມກິບ/ໂດລາ/ບາດ/ຢວນ — raw total per currency ──
-        List<Dashboard2Dto.CurrencyTotal> currencyTotals = realtimeAccounts.stream()
+    // ── ຍອດລວມກິບ/ໂດລາ/ບາດ/ຢວນ — raw total per currency ──
+    private List<Dashboard2Dto.CurrencyTotal> buildCurrencyTotals(List<AccountRealtimeEntity> realtimeAccounts) {
+        return realtimeAccounts.stream()
                 .filter(a -> a.getCcy() != null)
                 .collect(Collectors.groupingBy(AccountRealtimeEntity::getCcy, LinkedHashMap::new, Collectors.toList()))
                 .entrySet().stream()
                 .map(e -> new Dashboard2Dto.CurrencyTotal(e.getKey(), sumBalances(e.getValue()), e.getValue().size()))
                 .collect(Collectors.toList());
+    }
 
-        // ── ລາຍລະອຽດສາຂາ ເເລະ ຍອດຍົກມາທຽບໃສ່ກີບ — per branch, by currency + LAK equivalent ──
+    // ── ລາຍລະອຽດສາຂາ ເເລະ ຍອດຍົກມາທຽບໃສ່ກີບ — per branch, by currency + LAK equivalent ──
+    // branchCode/branchName come from AUTO_DEBIT_ACCOUNT_MAPPER / AUTO_DEBIT_BRANCH (app's own
+    // branch numbering), not from T24 CO_CODE, since accounts are grouped by how they were
+    // registered for auto-debit rather than by their live T24 branch.
+    private List<Dashboard2Dto.BranchSummary> buildDashboard2BranchSummaries(
+            List<AccountRealtimeEntity> realtimeAccounts, Map<String, String> branchCodeByAccountNo,
+            Map<Long, String> branchNameByNo, Map<String, BigDecimal> buyRates) {
+
         Map<String, List<AccountRealtimeEntity>> accountsByBranch = realtimeAccounts.stream()
-                .filter(a -> a.getBranchCode() != null)
-                .collect(Collectors.groupingBy(AccountRealtimeEntity::getBranchCode, LinkedHashMap::new, Collectors.toList()));
+                .filter(a -> branchCodeByAccountNo.get(a.getAccountNo()) != null)
+                .collect(Collectors.groupingBy(a -> branchCodeByAccountNo.get(a.getAccountNo()), LinkedHashMap::new, Collectors.toList()));
 
-        List<Long> branchNos = accountsByBranch.keySet().stream()
-                .map(this::parseBranchNo)
-                .filter(Objects::nonNull)
-                .distinct()
-                .collect(Collectors.toList());
-
-        Map<Long, String> branchNameByNo = branchNos.isEmpty()
-                ? Collections.emptyMap()
-                : branchDbRepository.findByBranchNoIn(branchNos).stream()
-                        .collect(Collectors.toMap(BranchDbEntity::getBranchNo, BranchDbEntity::getBranchName, (a, b) -> a));
-
-
-        List<Dashboard2Dto.BranchSummary> branchSummaries = accountsByBranch.entrySet().stream()
+        return accountsByBranch.entrySet().stream()
                 .map(e -> new Dashboard2Dto.BranchSummary(
                         e.getKey(),
-                        branchNameByNo.get(parseBranchNo(e.getKey())),
+                        resolveBranchName(e.getKey(), branchNameByNo),
                         e.getValue().size(),
                         balanceByCcy(e.getValue()),
                         totalLakEquivalent(e.getValue(), buyRates)
                 ))
                 .collect(Collectors.toList());
+    }
 
-        // ── Per account-type (CATEGORY) totals in LAK equivalent ──
-        List<Dashboard2Dto.CategorySummary> categorySummaries = realtimeAccounts.stream()
+    // ── Look up AUTO_DEBIT_BRANCH names for a set of branch codes in one query ──
+    private Map<Long, String> fetchBranchNames(Collection<String> branchCodes) {
+        List<Long> branchNos = branchCodes.stream()
+                .map(this::parseBranchNo)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+
+        return branchNos.isEmpty()
+                ? Collections.emptyMap()
+                : branchDbRepository.findByBranchNoIn(branchNos).stream()
+                        .collect(Collectors.toMap(BranchDbEntity::getBranchNo, BranchDbEntity::getBranchName, (a, b) -> a));
+    }
+
+    private String resolveBranchName(String branchCode, Map<Long, String> branchNameByNo) {
+        if (branchCode == null) {
+            return null;
+        }
+        Long branchNo = parseBranchNo(branchCode);
+        String branchName = branchNo != null ? branchNameByNo.get(branchNo) : null;
+        if (branchName == null) {
+            log.warn("No AUTO_DEBIT_BRANCH match for branchCode '{}', branchName will be blank", branchCode);
+        }
+        return branchName;
+    }
+
+    // ── Per account-type (CATEGORY) totals in LAK equivalent ──
+    private List<Dashboard2Dto.CategorySummary> buildCategorySummaries(
+            List<AccountRealtimeEntity> realtimeAccounts, Map<String, String> categoryNameByCode,
+            Map<String, BigDecimal> buyRates) {
+
+        return realtimeAccounts.stream()
                 .filter(a -> a.getCategory() != null)
                 .collect(Collectors.groupingBy(AccountRealtimeEntity::getCategory, LinkedHashMap::new, Collectors.toList()))
                 .entrySet().stream()
@@ -580,10 +680,20 @@ public class DashboardService {
                         totalLakEquivalent(e.getValue(), buyRates)
                 ))
                 .collect(Collectors.toList());
+    }
 
-        BigDecimal grandTotalLak = totalLakEquivalent(realtimeAccounts, buyRates);
-
-        return new Dashboard2Dto(accountDtos, currencyTotals, branchSummaries, categorySummaries, grandTotalLak);
+    // ── Exchange rates for LAK-equivalent totals ──
+    private Map<String, BigDecimal> fetchBuyRates() {
+        Map<String, BigDecimal> buyRates = new HashMap<>();
+        for (String ccy : List.of("USD", "THB", "CNY")) {
+            APIResponse<ExchangeRateEntity> rate = corebankService.getExchangeRate(ccy);
+            if (rate.getData() != null && rate.getData().getBuyRate() != null) {
+                buyRates.put(ccy, rate.getData().getBuyRate());
+            } else {
+                log.warn("No exchange rate found for {}, excluded from LAK-equivalent totals", ccy);
+            }
+        }
+        return buyRates;
     }
 
     private Long parseBranchNo(String branchCode) {

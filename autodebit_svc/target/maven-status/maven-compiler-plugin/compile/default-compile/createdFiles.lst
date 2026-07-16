@@ -50,6 +50,7 @@ com\ldbbank\autodebit_svc\model\corebank\FundTransferReq.class
 unitl\Constant$TrustCode$CZ.class
 com\ldbbank\autodebit_svc\db\autodebit\entity\VvRegisterEntity.class
 unitl\Constant$TrustCode$CoreBank.class
+com\ldbbank\autodebit_svc\db\autodebit\repository\AccountLimitTxnRepository.class
 com\ldbbank\autodebit_svc\db\autodebit\repository\BranchDbRepository.class
 com\ldbbank\autodebit_svc\db\autodebit\entity\VvRpTxnEntity.class
 unitl\Constant$RESPONSE_CODE.class
@@ -88,6 +89,7 @@ com\ldbbank\autodebit_svc\model\LoginResponse.class
 com\ldbbank\autodebit_svc\controller\BatchController.class
 com\ldbbank\autodebit_svc\model\dashboard\Dashboard2Dto$CategorySummary.class
 com\ldbbank\autodebit_svc\service\DashboardService.class
+com\ldbbank\autodebit_svc\db\autodebit\repository\AccountLimitDbRepository.class
 com\ldbbank\autodebit_svc\model\dashboard\Dashboard2Dto$BranchSummary.class
 com\ldbbank\autodebit_svc\db\autodebit\entity\AutoDebitCalAmountEntity.class
 com\ldbbank\autodebit_svc\mapper\VvRegisterMapper.class
@@ -98,6 +100,7 @@ com\ldbbank\autodebit_svc\db\autodebit\repository\AutoDebitCompanyRepository.cla
 com\ldbbank\autodebit_svc\model\dashboard\DashboardDto$MonthlyReport.class
 com\ldbbank\autodebit_svc\model\corebank\ReversalRes$ReversalResBuilder.class
 com\ldbbank\autodebit_svc\service\rpAutoDebitService\VvRegisterService.class
+com\ldbbank\autodebit_svc\db\autodebit\entity\AccountLimitTxnDbEntity.class
 com\ldbbank\autodebit_svc\db\autodebit\repository\AccountTypeRepository.class
 com\ldbbank\autodebit_svc\db\autodebit\repository\VvTransactionRepository.class
 com\ldbbank\autodebit_svc\model\dashboard\DashboardDto$CurrencySummary.class
@@ -121,6 +124,7 @@ com\ldbbank\autodebit_svc\model\corebank\ReversalReq.class
 unitl\Constant$TrustCode$CardZone.class
 com\ldbbank\autodebit_svc\db\autodebit\entity\BranchDbEntity.class
 com\ldbbank\autodebit_svc\controller\DashboardController.class
+com\ldbbank\autodebit_svc\db\autodebit\entity\AccountLimitDbEntity.class
 unitl\Constant$Response.class
 com\ldbbank\autodebit_svc\db\autodebit\repository\WhatAppRepository.class
 unitl\Constant$TrustCode$NSAW.class
