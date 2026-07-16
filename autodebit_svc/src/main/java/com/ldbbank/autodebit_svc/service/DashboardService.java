@@ -615,22 +615,29 @@ public class DashboardService {
                 .collect(Collectors.toList());
     }
 
+    // ── Group key used for accounts with no AUTO_DEBIT_ACCOUNT_MAPPER.branchCode, so they still
+    //    show up in branchSummaries instead of silently vanishing from the report. ──
+    private static final String UNASSIGNED_BRANCH_CODE = "UNASSIGNED";
+
     // ── ລາຍລະອຽດສາຂາ ເເລະ ຍອດຍົກມາທຽບໃສ່ກີບ — per branch, by currency + LAK equivalent ──
     // branchCode/branchName come from AUTO_DEBIT_ACCOUNT_MAPPER / AUTO_DEBIT_BRANCH (app's own
     // branch numbering), not from T24 CO_CODE, since accounts are grouped by how they were
     // registered for auto-debit rather than by their live T24 branch.
+    // Accounts whose mapper row has no branchCode are grouped under UNASSIGNED_BRANCH_CODE
+    // rather than dropped, so branchSummaries totals always reconcile with grandTotalLak.
     private List<Dashboard2Dto.BranchSummary> buildDashboard2BranchSummaries(
             List<AccountRealtimeEntity> realtimeAccounts, Map<String, String> branchCodeByAccountNo,
             Map<Long, String> branchNameByNo, Map<String, BigDecimal> buyRates) {
 
         Map<String, List<AccountRealtimeEntity>> accountsByBranch = realtimeAccounts.stream()
-                .filter(a -> branchCodeByAccountNo.get(a.getAccountNo()) != null)
-                .collect(Collectors.groupingBy(a -> branchCodeByAccountNo.get(a.getAccountNo()), LinkedHashMap::new, Collectors.toList()));
+                .collect(Collectors.groupingBy(
+                        a -> branchCodeByAccountNo.getOrDefault(a.getAccountNo(), UNASSIGNED_BRANCH_CODE),
+                        LinkedHashMap::new, Collectors.toList()));
 
         return accountsByBranch.entrySet().stream()
                 .map(e -> new Dashboard2Dto.BranchSummary(
                         e.getKey(),
-                        resolveBranchName(e.getKey(), branchNameByNo),
+                        UNASSIGNED_BRANCH_CODE.equals(e.getKey()) ? null : resolveBranchName(e.getKey(), branchNameByNo),
                         e.getValue().size(),
                         balanceByCcy(e.getValue()),
                         totalLakEquivalent(e.getValue(), buyRates)
