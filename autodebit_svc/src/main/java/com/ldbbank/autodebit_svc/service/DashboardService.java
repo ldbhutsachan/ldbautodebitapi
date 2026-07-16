@@ -469,13 +469,19 @@ public class DashboardService {
      * than in SQL because T24 and the app database are two separate physical Oracle
      * databases (see {@code SecondDataSourceConfig} / {@code PrimaryDataSourceConfig}).
      *
-     * @param branchCode optional filter on T24 CO_CODE, or {@code null} for all branches
-     * @param accountNo  optional filter on a single account number, or {@code null} for all accounts
+     * @param branchCode optional filter on AUTO_DEBIT_ACCOUNT_MAPPER.BRANCH_CODE, or {@code null}/{@code "all"} for all branches
+     * @param accountNo  optional filter on a single account number, or {@code null}/{@code "all"} for all accounts
      */
     public Dashboard2Dto getDashboard2(String branchCode, String accountNo) {
+
+        boolean anyBranch = branchCode == null || branchCode.isBlank() || "all".equalsIgnoreCase(branchCode);
+        boolean anyAccount = accountNo == null || accountNo.isBlank() || "all".equalsIgnoreCase(accountNo);
+
+        // ── branchCode is searched against AUTO_DEBIT_ACCOUNT_MAPPER.BRANCH_CODE, not T24 CO_CODE ──
         List<AutoDebitAccountMapperEntity> mappers = autoDebitAccountMapperRepository.findByStatus(1).stream()
                 .filter(m -> m.getFromAcctNo() != null)
-                .filter(m -> accountNo == null || accountNo.isBlank() || m.getFromAcctNo().equals(accountNo))
+                .filter(m -> anyAccount || m.getFromAcctNo().equals(accountNo))
+                .filter(m -> anyBranch || branchCode.equalsIgnoreCase(m.getBranchCode()))
                 .collect(Collectors.toList());
 
         List<String> accountNos = mappers.stream()
@@ -497,7 +503,7 @@ public class DashboardService {
                         AutoDebitAccountMapperEntity::getBranchCode, (a, b) -> a));
         Map<Long, String> branchNameByNo = fetchBranchNames(branchCodeByAccountNo.values());
 
-        List<AccountRealtimeEntity> realtimeAccounts = fetchRealtimeAccounts(accountNos, branchCode);
+        List<AccountRealtimeEntity> realtimeAccounts = fetchRealtimeAccounts(accountNos);
 
         Map<String, String> categoryNameByCode = fetchCategoryNames(realtimeAccounts);
         Map<String, BigDecimal> buyRates = fetchBuyRates();
@@ -551,19 +557,20 @@ public class DashboardService {
         entity.setCompanyName(companyName);
         entity.setTimeNow(LocalDateTime.now());
         entity.setTimeCheck(LocalDate.now());
+        entity.setUserLogin(null);
+
         accountLimitTxnRepository.save(entity);
     }
 
 
     // ── ຄົ້ນຫາເທື່ອລະບັນຊີເເລ້ວເອົາມາລວມກັນ — query T24 one account at a time, then merge ──
-    private List<AccountRealtimeEntity> fetchRealtimeAccounts(List<String> accountNos, String branchCode) {
+    private List<AccountRealtimeEntity> fetchRealtimeAccounts(List<String> accountNos) {
+
         List<AccountRealtimeEntity> realtimeAccounts = new ArrayList<>();
         for (String accNo : accountNos) {
             realtimeAccounts.addAll(accountRealtimeRepository.findAccountsRealtimeByAccNo(accNo));
         }
-        return realtimeAccounts.stream()
-                .filter(a -> branchCode == null || branchCode.isBlank() || branchCode.equalsIgnoreCase(a.getBranchCode()))
-                .collect(Collectors.toList());
+        return realtimeAccounts;
     }
 
     // ── Map CATEGORY -> TYPE_NAME (application-side join across the two databases) ──

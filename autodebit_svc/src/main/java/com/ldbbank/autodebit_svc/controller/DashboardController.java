@@ -82,13 +82,13 @@ public class DashboardController {
      * Pulls live balances from T24 for accounts registered for auto-debit and returns
      * account detail plus branch/currency/account-type summaries.
      *
-     * @param branchCode optional filter by T24 branch code (CO_CODE)
-     * @param accountNo  optional filter by a single account number
+     * @param branchCode optional filter by branch code (AUTO_DEBIT_ACCOUNT_MAPPER.BRANCH_CODE), or "all"
+     * @param accountNo  optional filter by a single account number, or "all"
      */
     @GetMapping("/dashboard2")
     public ApiResponse<?> getDashboard2(
-            @RequestParam(value = "branchCode", required = false) String branchCode,
-            @RequestParam(value = "accountNo", required = false) String accountNo) {
+            @RequestParam(value = "branchCode", required = false, defaultValue = "all") String branchCode,
+            @RequestParam(value = "accountNo", required = false, defaultValue = "all") String accountNo) {
         try {
             Dashboard2Dto data = dashboardService.getDashboard2(branchCode, accountNo);
             return new ApiResponse<>("00", "Success", data);

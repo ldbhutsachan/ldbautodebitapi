@@ -21,6 +21,9 @@ public class AccountLimitTxnDbEntity {
     @Column(name = "COMPANAY_NAME")
     private String companyName;
 
+    @Column(name = "USER_LOGIN")
+    private String userLogin;
+
     @Column(name = "TIME_CHECK")
     private LocalDate timeCheck;
 

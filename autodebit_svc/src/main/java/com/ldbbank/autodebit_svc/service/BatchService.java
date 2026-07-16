@@ -93,28 +93,38 @@ public class BatchService {
 
             List<AutoDebitAccountMapperEntity> maps = mapperRepo.findByPartnerName(String.valueOf(comp.getCompanyCode()));
             log.info("=======start running for company Code========:" + String.valueOf(comp.getCompanyCode()));
-            for (AutoDebitAccountMapperEntity m : maps) {
-                if (m.getStatus() == null || m.getStatus() != 1) continue; // only open
 
-                // check account
-                log.info("=======start running for company getPartnerName========:" + m.getPartnerName());
-                var accOpt = accountRepo.findByPartNerNameAndAccountCcy(m.getPartnerName(), m.getFromAcctCcy());
-                if (accOpt.isEmpty()) continue;
+            int batchSize = 10;
+            int totalAccounts = maps.size();
+            for (int start = 0; start < totalAccounts; start += batchSize) {
+                int end = Math.min(start + batchSize, totalAccounts);
+                List<AutoDebitAccountMapperEntity> batch = maps.subList(start, end);
+                log.info("=======processing batch [{}-{}] of {} accounts for company {}========",
+                        start + 1, end, totalAccounts, comp.getCompanyCode());
 
-                AutoDebitAccountEntity acc = accOpt.get();
+                for (AutoDebitAccountMapperEntity m : batch) {
+                    if (m.getStatus() == null || m.getStatus() != 1) continue; // only open
 
-                // check if transaction already exists for this account/date
-                Optional<AutoDebitAccountTxnEntity> checkTxn = txnRepo.findByFromAcctNoAndTxnDate(m.getFromAcctNo(), date);
-                if (checkTxn.isPresent()) {
-                    log.info("Transaction already exists for account {} on date {}", m.getFromAcctNo(), date);
-                    continue; // skip insert
+                    // check account
+                    log.info("=======start running for company getPartnerName========:" + m.getPartnerName());
+                    var accOpt = accountRepo.findByPartNerNameAndAccountCcy(m.getPartnerName(), m.getFromAcctCcy());
+                    if (accOpt.isEmpty()) continue;
+
+                    AutoDebitAccountEntity acc = accOpt.get();
+
+                    // check if transaction already exists for this account/date
+                    Optional<AutoDebitAccountTxnEntity> checkTxn = txnRepo.findByFromAcctNoAndTxnDate(m.getFromAcctNo(), date);
+                    if (checkTxn.isPresent()) {
+                        log.info("Transaction already exists for account {} on date {}", m.getFromAcctNo(), date);
+                        continue; // skip insert
+                    }
+
+                    // insert new transaction
+                    AutoDebitAccountTxnEntity mapperTxn = mapperInsertDataToAccountTxn(percent, comp, m, acc);
+
+                    // call fund transfer
+                    fundTransferResAPIStep01(comp, m, acc, mapperTxn);
                 }
-
-                // insert new transaction
-                AutoDebitAccountTxnEntity mapperTxn = mapperInsertDataToAccountTxn(percent, comp, m, acc);
-
-                // call fund transfer
-                fundTransferResAPIStep01(comp, m, acc, mapperTxn);
             }
 
         }
@@ -156,10 +166,20 @@ public class BatchService {
             // Ensure startAmount is BigDecimal in your entity
              calClosingBalance = Optional.ofNullable(mapEntity.getStartAmount())
                     .orElse(BigDecimal.ZERO);
-
-            // Use subtract() instead of '-'
-            fromClosing = closing.subtract(calClosingBalance);
         }
+
+        // ກວດສອບຍອດ closing balance ທຽບກັບເກນຂັ້ນຕ່ຳ (calClosingBalance) ກ່ອນຄິດໄລ່
+        if (closing.compareTo(calClosingBalance) < 0) {
+            // ຍອດ closing ຫຼຸດເກນຂັ້ນຕ່ຳ -> ນຳສ່ວນເກີນ (ຖ້າມີ) ມາຄິດໄລ່ percent, ປ້ອງກັນບໍ່ໃຫ້ຫຼຸດເກນຂັ້ນຕ່ຳໄປອີກ
+            fromClosing = closing.subtract(calClosingBalance);
+            if (fromClosing.compareTo(BigDecimal.ZERO) < 0) {
+                fromClosing = BigDecimal.ZERO;
+            }
+        } else {
+            // ຍອດ closing ບໍ່ຫຼຸດເກນຂັ້ນຕ່ຳ -> ຕັດ percent ຈາກຍອດ closing ໂດຍກົງ
+            fromClosing = closing;
+        }
+
         // Correct way: multiply then divide
         toClosing = fromClosing.multiply(percent)   // * 10
                 .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP); // / 100 with scale
@@ -273,7 +293,6 @@ public class BatchService {
         updateStatusAutoDebit(txn, requestBody, responseData);
         return apiResponse;
     }
-
 
 }
 
